@@ -72,8 +72,9 @@ int main(void)
 		TimeFlagTicks = GetTimeTicks();
         {
         #if 1
-            if(((RedLedTicks + 500) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
+            if(((RedLedTicks + 5000) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
             {
+                CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
                 RedLedTicks = TimeFlagTicks;
                 RedLed();
             }
@@ -88,10 +89,12 @@ int main(void)
 			if(((NFCardTicks + 500) <= TimeFlagTicks) || (NFCardTicks > TimeFlagTicks))
             {
                 NFCardTicks = TimeFlagTicks;
-				
-				if(CL_OK == BswDrv_FM175XX_SetPowerDown(0))		//ÍË³öË¯Ãß
+				if(GlobalInfo.UpgradeFlag != 0xa5)
 				{
-					NFCardTask();
+					if(CL_OK == BswDrv_FM175XX_SetPowerDown(0)) 	//ÍË³öË¯Ãß
+					{
+						NFCardTask();
+					}
 				}
                 BswDrv_FM175XX_SetPowerDown(1);			//½øÈëË¯Ãß
                 FeedWatchDog();
@@ -113,7 +116,7 @@ int main(void)
                 FeedWatchDog();
                 HeartBeatTicks = TimeFlagTicks;
 				BasicInfoHeartBeat();
-				CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
+		//		CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
 			}
 		#endif
         }

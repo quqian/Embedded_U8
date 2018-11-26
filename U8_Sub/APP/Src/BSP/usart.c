@@ -45,6 +45,7 @@ int fputc(int ch, FILE *f)
 #else
 {
     FeedWatchDog();
+    ///GlobalInfo.UpperMonitorTestFlag = 0xa5;
     if(0xa5 == GlobalInfo.UpperMonitorTestFlag)
 	{
 		VirtualUartByteSend(ch);
@@ -57,14 +58,14 @@ int fputc(int ch, FILE *f)
 	        if (('\n' == ch) || ('\r' == ch) || ('\0' == ch))
 	        {
 	            UsartSend(DEBUG_INDEX, (void *)gPrintBuff, gWrite);
-				//SimuUartSendData(&gSimUartCtrl[0], (void *)gPrintBuff, gWrite);
+			//	SimuUartSendData(&gSimUartCtrl[0], (void *)gPrintBuff, gWrite);
 	            gWrite = 0;
 	        }
 	    }
     	else
 	    {
 			UsartSend(DEBUG_INDEX, (void *)gPrintBuff, sizeof(gPrintBuff));
-			//SimuUartSendData(&gSimUartCtrl[0], (void *)gPrintBuff, sizeof(gPrintBuff));
+		//	SimuUartSendData(&gSimUartCtrl[0], (void *)gPrintBuff, sizeof(gPrintBuff));
 	        gWrite = 0;
 		}
 	}

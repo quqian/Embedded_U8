@@ -500,6 +500,7 @@ int SendUpgradePackage(CB_STR_t *pBuff, uint16_t len)
 		DelayMsWithNoneOs(1000);
 		PlayVoice(VOIC_DEVICE_REBOOT);
 		CL_LOG("DEBUG_CMD_REBOOT÷ÿ∆ÙœµÕ≥£°\n");
+		GlobalInfo.UpgradeFlag = 0;
 		DelayMsWithNoneOs(1000);
 		NVIC_SystemReset();
 	}
