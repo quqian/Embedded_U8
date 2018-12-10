@@ -48,10 +48,10 @@
 #define FLASH_PAGE_SIZE					1024
 
 #define BOOT_SIZE	                	((uint32_t)0x2000)
-#define AppFlashAddr	                (FLASH_BASE + BOOT_SIZE)		//App运行入口地址
-#define AppUpBkpAddr					(AppFlashAddr + ((uint32_t)56) * 1024)	//应用区		56K
+#define AppFlashAddr	                (FLASH_BASE + BOOT_SIZE)		//App运行入口地址	//应用区	 58K
+#define AppUpBkpAddr					(AppFlashAddr + ((uint32_t)58) * 1024)		//备份区	 58K
 
-#define SystemInfoAddr 					(AppUpBkpAddr + ((uint32_t)56) * 1024)	//备份区		56K	//(FLASH_BASE + ((uint32_t)124) * 1024)
+#define SystemInfoAddr 					(AppUpBkpAddr + ((uint32_t)58) * 1024)		//(FLASH_BASE + ((uint32_t)124) * 1024)
 #define UPGRADE_INFO					(FLASH_BASE + ((uint32_t)127) * 1024)				//升级信息
 #define APP_FW_SIZE                     (AppUpBkpAddr - AppFlashAddr)
 
@@ -79,7 +79,7 @@
 
 
 #define CL_LOG(fmt,args...) do {    \
-    printf("[U8s] %s:(%d)" fmt, __func__, __LINE__, ##args); \
+    printf("[U8s] %s:(%d) " fmt, __func__, __LINE__, ##args); \
 }while(0)
 
 //extern char* GetCurrentTime(void);

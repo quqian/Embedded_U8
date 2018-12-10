@@ -52,8 +52,8 @@ void BspInit(void)
 #if USE_TIMER1
     TimerConfig(1, 1000);
 #endif
-    printf("\n\n\n===========================================================\n");
-    CL_LOG("设备启动\n");
+
+	LoadSystemInfo();
     SystemResetRecord();
     printf("UsartInit OK!\r\n");
     SC8042B_Init();
@@ -65,8 +65,6 @@ void BspInit(void)
 //    PlayVoice(VOIC_SHARE_CHARGE);       //共享充电
 //    DelayMsWithNoneOs(900);
     printf("\r\n BspInit ok\n");
-    printf("fw_version = %d, subVersion1 = %d, subVersion2 = %d.\n", (uint8_t)FW_VERSION, (uint8_t)FW_VERSION_SUB1, (uint8_t)FW_VERSION_SUB2);
-    printf("\n 文件编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
     printf("\n===========================================================\n");
 }
 
@@ -86,25 +84,8 @@ int main(void)
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);		//设置系统中断优先级分组4	
 	
     BspInit();
-#if 0
-	GlobalInfo.RtcData.rtc_year		 	= 0x18;
-	GlobalInfo.RtcData.rtc_month		= RTC_NOV ;
-	GlobalInfo.RtcData.rtc_date		 	= 0x29 ;
-	GlobalInfo.RtcData.rtc_day_of_week 	= RTC_THURSDAY ;
-	GlobalInfo.RtcData.rtc_hour		 = 0x16;
-	GlobalInfo.RtcData.rtc_minute 	 = 0x28;
-	GlobalInfo.RtcData.rtc_second 	 = 0x00;
-	GlobalInfo.RtcData.rtc_factor_asyn = prescaler_a;
-	GlobalInfo.RtcData.rtc_factor_syn = prescaler_s;
-	GlobalInfo.RtcData.rtc_am_pm = RTC_AM;		//0:AM  !0:PM
-	GlobalInfo.RtcData.rtc_display_format = RTC_24HOUR;
-
-	SetRtcTime(&GlobalInfo.RtcData);
-#else
-	SetRtcCount(1543547571);
-//	t = 1543484295;
-//	gmtime(&t);
-#endif
+	
+	SetRtcCount(1543547571);	
 	while(1)
     {
         FeedWatchDog();
@@ -114,22 +95,9 @@ int main(void)
         #if 1
             if(((RedLedTicks + 5000) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
             {
-               // CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
+                CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
                 RedLedTicks = TimeFlagTicks;
                 RedLed();
-                
-				{
-					rtc_current_time_get(&GlobalInfo.RtcData);
-                    printf("\n\n\n");
-					CL_LOG("rtc_year[%#x]\n", GlobalInfo.RtcData.rtc_year);
-					CL_LOG("rtc_month[%#x]\n", GlobalInfo.RtcData.rtc_month);
-					CL_LOG("rtc_date[%#x]\n", GlobalInfo.RtcData.rtc_date);
-					CL_LOG("rtc_day_of_week[%#x]\n", GlobalInfo.RtcData.rtc_day_of_week);
-					CL_LOG("rtc_hour[%#x]\n", GlobalInfo.RtcData.rtc_hour);
-					CL_LOG("rtc_minute[%#x]\n", GlobalInfo.RtcData.rtc_minute);
-					CL_LOG("rtc_second[%#x]\n", GlobalInfo.RtcData.rtc_second);
-					CL_LOG("rtc_am_pm[%#x]\n", GlobalInfo.RtcData.rtc_am_pm);
-				}
             }
 			
 			if(((GreenLedTicks + 500) <= GetTimeTicks()) || (GreenLedTicks > GetTimeTicks()))

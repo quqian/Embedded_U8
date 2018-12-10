@@ -8,7 +8,7 @@
 SYS_UPDATE_INFO_T   UpdateInfo = {0};
 
 //系统信息写flash
-#define FLASH_WRITE_REPEAT_TIMES            ((uint32_t) 50)
+#define FLASH_WRITE_REPEAT_TIMES            ((uint32_t) 5)
 int FlashWriteSysInfo(void *pSysInfo, uint16_t size)
 {
     #if 1

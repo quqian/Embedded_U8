@@ -9,7 +9,7 @@
 
 typedef struct
 {
-    uint32_t WifiSerialNum;
+    uint32_t magic_number;
 	uint8_t printfSwitch;
 }SYSTEM_INFO_T;
 

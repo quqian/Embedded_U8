@@ -56,25 +56,25 @@ void FeedWatchDog(void)
 void LoadSystemInfo(void)
 {
 //    const uint8_t station_id[8] = {0x00,0x00,0x00,0x66,0x77,0x88,0x99,0x00};
-//    FlashReadSysInfo(&SystemInfo,sizeof(SystemInfo));
-//	memset((void*)&GlobalInfo, 0, sizeof(GlobalInfo));
-//	
-//    if ((MAGIC_NUM_BASE) == SystemInfo.magic_number) 
-//    {
-//        printf("\n\n\n==============================================\n");
-//        CL_LOG("设备启动\n");
-//    }
-//    else
-//    {
-//        printf("\n\n\n**********************************************\n");
-//        CL_LOG("设备初次启动\n");
-//        memset((void*)&SystemInfo, 0, sizeof(SystemInfo));
-//        SystemInfo.magic_number = MAGIC_NUM_BASE;
+    FlashReadSysInfo(&SystemInfo,sizeof(SystemInfo));
+	memset((void*)&GlobalInfo, 0, sizeof(GlobalInfo));
+	
+    if ((MAGIC_NUM_BASE) == SystemInfo.magic_number) 
+    {
+        printf("\n\n\n===========================================================\n");
+        CL_LOG("\rU8Sub启动App\n");
+    }
+    else
+    {
+        printf("\n\n\n***********************************************************\n");
+        CL_LOG("\rU8Sub初次启动App\n");
+        memset((void*)&SystemInfo, 0, sizeof(SystemInfo));
+        SystemInfo.magic_number = MAGIC_NUM_BASE;
 //        memcpy(SystemInfo.stationId, station_id,sizeof(station_id));
-//        FlashWriteSysInfo(&SystemInfo,sizeof(SystemInfo));
-//    }
-//    CL_LOG("设备版本号:%d.%d.%d\n", FW_VERSION, FW_VERSION_SUB1, FW_VERSION_SUB2);
-//    PrintfData("设备号", SystemInfo.stationId, sizeof(SystemInfo.stationId));
+        FlashWriteSysInfo(&SystemInfo,sizeof(SystemInfo));
+    }
+    CL_LOG("\r设备版本号: %d.%d.%d \n", FW_VERSION, FW_VERSION_SUB1, FW_VERSION_SUB2);
+    CL_LOG("\n\r文件编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
 }
 
 void StartDelay(void)

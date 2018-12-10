@@ -450,7 +450,7 @@ uint8_t FM175XX_HardReset(void)
     CARD_DELAY_MS(10);
     FeedWatchDog();
     reg_data = Read_Reg(CommandReg);
-    printf("reg_data = [%#x],[%#x]\n", reg_data, Idle);
+//    printf("reg_data = [%#x],[%#x]\n", reg_data, Idle);
     if (reg_data == Idle)
 	{
 		return OK;
