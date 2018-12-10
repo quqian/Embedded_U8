@@ -170,7 +170,7 @@ int UsartGetOneData(int portIndex, uint8_t *pData)
 
 void UsartInit(void)
 {
-    UARTx_Init(0, ENABLE, 115200);
+    UARTx_Init(0, ENABLE, 19200);
 //    UARTx_Init(1, ENABLE, 115200);
 }
 

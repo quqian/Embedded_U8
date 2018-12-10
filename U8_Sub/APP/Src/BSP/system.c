@@ -233,6 +233,7 @@ void TimerConfig(uint8_t Index, uint32_t Period)
 		timer_disable(TIMERX[Index]);
 	}
 }
+#if USE_TIMER1
 __IO uint32_t gSystick = 0;
 void TIMER1_IRQHandler(void)
 {
@@ -251,5 +252,5 @@ uint32_t GetTimeTicks(void)
 {
 	return gSystick;
 }
-
+#endif
 

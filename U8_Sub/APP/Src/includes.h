@@ -1,7 +1,7 @@
 #ifndef __INCLUDES_H__
 #define __INCLUDES_H__
 
-
+#include <stdio.h>
 #include <stdio.h>
 #include <stdlib.h>
 #include <string.h>
@@ -18,23 +18,25 @@
 #include "systick.h"
 #include "ProtoWithMainBoard.h"
 #include "sc8042b.h"
+#include "gd32f3x0_rtc.h"
+#include "rtc.h"
 
 
 
 #define FW_VERSION                      0
-#define FW_VERSION_SUB1                 3
+#define FW_VERSION_SUB1                 4
 #define FW_VERSION_SUB2                 1
 
 
-#define FLASH_SIZE                      64     //设备flash大小256K
+#define FLASH_SIZE                      128     //设备flash大小128K
 #define FLASH_PAGE_SIZE					1024
 
 #define BOOT_SIZE	                	((uint32_t)0x2000)
 #define AppFlashAddr	                (FLASH_BASE + BOOT_SIZE)		//App运行入口地址
-#define AppUpBkpAddr					(AppFlashAddr + (uint32_t)27 * 1024)				//备份区
+#define AppUpBkpAddr					(AppFlashAddr + ((uint32_t)56) * 1024)	//应用区		56K
 
-#define SystemInfoAddr 					(FLASH_BASE + ((uint32_t)62) * 1024)
-#define UPGRADE_INFO					(FLASH_BASE + ((uint32_t)63) * 1024)				//升级信息
+#define SystemInfoAddr 					(AppUpBkpAddr + ((uint32_t)56) * 1024)	//备份区		56K	//(FLASH_BASE + ((uint32_t)124) * 1024)
+#define UPGRADE_INFO					(FLASH_BASE + ((uint32_t)127) * 1024)				//升级信息
 #define APP_FW_SIZE                     (AppUpBkpAddr - AppFlashAddr)
 
 
@@ -55,7 +57,7 @@
 
 
 #define CL_LOG(fmt,args...) do {    \
-    printf("[U8s %d] %s:(%d)" fmt, GetTimeTicks()/1000, __func__, __LINE__, ##args); \
+    printf("[U8 %s] %s:(%d)" fmt, GetCurrentTime(), __func__, __LINE__, ##args); \
 }while(0)
 
 

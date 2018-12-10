@@ -1,3 +1,15 @@
+/*****************************************************************************
+** @Author: quqian  
+** @Date: 2018-11-15 14:20:14 
+** @File: main.c
+** @MCU: GD32F330CBT6   
+** @MCU max Speed: 84M
+** @MCU Flash: 128K
+** @MCU RAM: 16K
+** @MCU Package: LQFP48
+** @Last Modified by: quqian
+** @Last Modified time: 2018-12-10 14:20:14 
+*****************************************************************************/
 #include "includes.h"
 #include "gd32f3x0.h"
 #include "systick.h"
@@ -65,7 +77,11 @@ void BspInit(void)
     //语音提示    
 //    PlayVoice(VOIC_DEVICE_REBOOT);           //设备重启
 //    DelayMsWithNoneOs(900);
-    CL_LOG("\r\n boot BspInit ok\n");
+    printf("\n\n\n===========================================================\n");
+    CL_LOG(" U8Sub启动bootLoad\n");
+    printf("fw_version = %d, subVersion1 = %d, subVersion2 = %d.\n", (uint8_t)FW_VERSION, (uint8_t)FW_VERSION_SUB1, (uint8_t)FW_VERSION_SUB2);
+    printf("\n U8Sub bootload编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
+    printf("\n===========================================================\n");
 }
 
 int main(void)
@@ -96,6 +112,7 @@ int main(void)
     
     while(1)
     {
+        //这里不要加看门狗喂狗
         printf("没有app程序!\n");
     }
 }

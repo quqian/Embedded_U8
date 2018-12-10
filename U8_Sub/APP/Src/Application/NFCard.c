@@ -182,7 +182,7 @@ void ReadCardHandle(void)
 	    }
 		else
 		{
-			if(((GlobalInfo.ReportTicks + 5000) <= GetTimeTicks()) || (GlobalInfo.ReportTicks > GetTimeTicks()))
+			if(((GlobalInfo.ReportTicks + 3000) <= GetTimeTicks()) || (GlobalInfo.ReportTicks > GetTimeTicks()))
 	    	{
 	        	GlobalInfo.ReportTicks = GetTimeTicks();
 				Sc8042bSpeech(VOIC_READING_CARD);

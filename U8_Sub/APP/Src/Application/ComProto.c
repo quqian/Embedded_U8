@@ -172,7 +172,7 @@ void DebugRecvProc(void)
 	                    step = FIND_DEST;
 	                    len = 0;
 	                }
-	                break;
+	            break;
 
 	            case FIND_DEST:
 	                pBuff[pktLen++] = data;
@@ -229,7 +229,7 @@ void DebugRecvProc(void)
 	                }
 	            break;
 
-	           case FIND_CHK:
+	           	case FIND_CHK:
 	                if (sum == data) 
 					{
 	                    PrintfData("DebugRecvProc", pBuff, pktLen);
@@ -242,6 +242,8 @@ void DebugRecvProc(void)
 	                }
 	                step = FIND_AA;
 	            break;
+				default:
+				break;
 	        }
 	    }
 	}

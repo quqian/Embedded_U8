@@ -22,36 +22,37 @@
 
 
 
-#if 0
-	//#define NET_SERVER_IP                   "172.16.0.228"     //新开发环境
-	#define NET_SERVER_IP                   "47.97.238.64"     //新开发环境
-	#define NET_SERVER_PORT                 "10010"
-#elif 0
-	#define NET_SERVER_IP                   "47.97.224.240"     //正式环境
-	#define NET_SERVER_PORT                 "10010"
-#elif 0
-	#define NET_SERVER_IP                   "47.97.236.187"		//预发布环境
-	#define NET_SERVER_PORT                 "10010"
-#else
-	#define NET_SERVER_IP                   "test.access.chargerlink.com"	//测试环境
-	#define NET_SERVER_PORT                 "10010"
-//	#define NET_SERVER_IP                   "192.168.20.215"	//wifi模拟测试
+//#if 0
+//	//#define NET_SERVER_IP                   "172.16.0.228"     //新开发环境
+//	#define NET_SERVER_IP                   "47.97.238.64"     //新开发环境
 //	#define NET_SERVER_PORT                 "10010"
-#endif
+//#elif 0
+//	#define NET_SERVER_IP                   "47.97.224.240"     //正式环境
+//	#define NET_SERVER_PORT                 "10010"
+//#elif 0
+//	#define NET_SERVER_IP                   "47.97.236.187"		//预发布环境
+//	#define NET_SERVER_PORT                 "10010"
+//#else
+//	#define NET_SERVER_IP                   "test.access.chargerlink.com"	//测试环境
+//	#define NET_SERVER_PORT                 "10010"
+////	#define NET_SERVER_IP                   "192.168.20.215"	//wifi模拟测试
+////	#define NET_SERVER_PORT                 "10010"
+//#endif
 
 #define FW_VERSION                      0
-#define FW_VERSION_SUB1                 0
+#define FW_VERSION_SUB1                 1
 #define FW_VERSION_SUB2                 1
 
 
-#define FLASH_SIZE                      64     //设备flash大小256K
+#define FLASH_SIZE                      128     //设备flash大小128K
 #define FLASH_PAGE_SIZE					1024
 
 #define BOOT_SIZE	                	((uint32_t)0x2000)
 #define AppFlashAddr	                (FLASH_BASE + BOOT_SIZE)		//App运行入口地址
-#define AppUpBkpAddr					(AppFlashAddr + (uint32_t)27 * 1024)				//备份区
+#define AppUpBkpAddr					(AppFlashAddr + ((uint32_t)56) * 1024)	//应用区		56K
 
-#define UPGRADE_INFO					(FLASH_BASE + ((uint32_t)63) * 1024)				//升级信息
+#define SystemInfoAddr 					(AppUpBkpAddr + ((uint32_t)56) * 1024)	//备份区		56K	//(FLASH_BASE + ((uint32_t)124) * 1024)
+#define UPGRADE_INFO					(FLASH_BASE + ((uint32_t)127) * 1024)				//升级信息
 #define APP_FW_SIZE                     (AppUpBkpAddr - AppFlashAddr)
 
 

@@ -54,7 +54,7 @@ typedef struct {
 typedef struct{
     uint8_t fw_verson;
     uint8_t cardState;					// 0—故障  1—正常
-    uint8_t reseverd[4];
+    uint32_t TimeStamp;	
 }SHAKE_HAND_STR;
 
 typedef struct{
@@ -63,11 +63,12 @@ typedef struct{
 
 typedef struct{
     uint8_t cardState;					// 0—故障  1—正常
-    uint8_t reseverd[4];
+    uint32_t TimerStamp;				//发送给主板
 }HEARTBAT_STR;
 
 typedef struct{
     uint8_t result;						// 0：接收成功；1：接收失败
+    uint32_t TimerStamp;				//主板时间戳，0-无效 (如果主板无网络，该位填0，如果主板有网络，该位填真实时间戳，刷卡版需要对时)
 }HEARTBAT_ACK_STR;
 
 typedef struct{

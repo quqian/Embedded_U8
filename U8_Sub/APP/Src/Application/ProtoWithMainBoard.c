@@ -188,7 +188,8 @@ int BasicInfoShakeHand(void)
 	{
 		ShakeHand->cardState = 0;
 	}
-
+	ShakeHand->TimeStamp = 0;
+	
 	App_CB_SendData(pBuff, sizeof(SHAKE_HAND_STR), ENUM_MODUL_BASE, ENUM_SHAKE_HAND);
 	PrintfData("BasicInfoShakeHand", (uint8_t*)pBuff, sizeof(SHAKE_HAND_STR) + sizeof(CB_HEAD_STR) + 2);
 	
@@ -226,7 +227,7 @@ int BasicInfoHeartBeat(void)
 	{
 		HeartBeat->cardState = 0;
 	}
-	
+	HeartBeat->TimerStamp = 0;
 
 	App_CB_SendData(pBuff, sizeof(HEARTBAT_STR), ENUM_MODUL_BASE, ENUM_HEART_BEAT);
 	
@@ -240,6 +241,7 @@ int BasicInfoHeartBeatAck(CB_STR_t *pBuff, uint16_t len)
 	if(0 == HeartBeatAck->result)
 	{
 		printf("收到主板心跳应答!\r\n");
+	//	HeartBeatAck->TimerStamp;
 	}
 	else
 	{
@@ -572,8 +574,8 @@ void MainBoardPktProc(CB_STR_t *pBuff, uint16_t len)
 void ComRecvMainBoardData(void)
 {
 	uint8_t data;
-	uint8_t gCBRecvBuffer[256] = {0,};
-	uint8_t *pktBuff = (void*)&gCBRecvBuffer[0];
+	static uint8_t gCBRecvBuffer[256] = {0,};
+    uint8_t *pktBuff = (void*)&gCBRecvBuffer[0];
 	static uint8_t  step = CB_FIND_AA;
 	static uint16_t pktLen;
 	static uint16_t length;

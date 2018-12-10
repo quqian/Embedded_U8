@@ -1,70 +1,120 @@
+#include <stdio.h>
+#include <time.h>
 #include "rtc.h"
 #include "includes.h"
+#include "gd32f3x0_pmu.h"
+#include "gd32f3x0_rcu.h"
+#include <string.h>
+#include <stdlib.h>
+#include <ctype.h>
 
 
-#if 0
-rtc_parameter_struct   rtc_initpara;
 __IO uint32_t prescaler_a = 0;
 __IO uint32_t prescaler_s = 0;
 
-void rtc_setup(void)
+
+void rtc_show_time(void)
 {
-    rtc_initpara.rtc_factor_asyn = prescaler_a;
-    rtc_initpara.rtc_factor_syn = prescaler_s;
-    rtc_initpara.rtc_year = 0x16;
-    rtc_initpara.rtc_day_of_week = RTC_SATURDAY;
-    rtc_initpara.rtc_month = RTC_APR;
-    rtc_initpara.rtc_date = 0x30;
-    rtc_initpara.rtc_display_format = RTC_24HOUR;
-    rtc_initpara.rtc_am_pm = RTC_AM;
-
-    /* current time input */
-    printf("=======Configure RTC Time========\n\r");
-	rtc_initpara.rtc_hour = 5;
-    printf("  please input minute:\n\r");
-	rtc_initpara.rtc_minute = 5;
-    printf("  please input second:\n\r");
-	rtc_initpara.rtc_second = 5;
-
-    /* RTC current time configuration */
-    if(ERROR == rtc_init(&rtc_initpara))
-	{    
-        printf("** RTC time configuration failed! **\n\r");
-    }
-	else
-	{
-        printf("** RTC time configuration success! **\n\r");
-        rtc_show_time();
-        RTC_BKP0 = 0x32f0;
-    }   
+    rtc_current_time_get(&GlobalInfo.RtcData); 
 }
-#endif
 
-void RtcInit(void)
+void rtc_show_alarm(void)
 {
-    /* enable PMU and BKPI clocks */
-//    rcu_periph_clock_enable(RCU_BKPI);
+    rtc_alarm_get(&GlobalInfo.rtc_alarm);
+}
+
+#define RTC_CLOCK_SOURCE_LXTAL
+void rtc_pre_config(void)
+{
+    /* enable access to RTC registers in backup domain */
     rcu_periph_clock_enable(RCU_PMU);
-    /* allow access to BKP domain */
     pmu_backup_write_enable();
 
-	/* reset BKP domain register*/
-    rcu_bkp_reset_enable();
-    rcu_bkp_reset_disable();
-	
-    rcu_osci_on(RCU_IRC40K);         //使能内部低速时钟
-    rcu_osci_stab_wait(RCU_IRC40K);
-    rcu_rtc_clock_config(RCU_RTCSRC_IRC40K);
+#if defined (RTC_CLOCK_SOURCE_IRC40K)    
+	/* enable the IRC40K oscillator */
+	rcu_osci_on(RCU_IRC40K);
+	/* wait till IRC40K is ready */
+	rcu_osci_stab_wait(RCU_IRC40K);
+	/* select the RTC clock source */
+	rcu_rtc_clock_config(RCU_RTCSRC_IRC40K);
+
+	prescaler_s = 0x18F;
+	prescaler_a = 0x63;
+#elif defined (RTC_CLOCK_SOURCE_LXTAL)
+	rcu_osci_on(RCU_LXTAL);
+	rcu_osci_stab_wait(RCU_LXTAL);
+	/* select the RTC clock source */
+	rcu_rtc_clock_config(RCU_LXTAL);
+
+	prescaler_s = 0xFF;
+	prescaler_a = 0x7F;
+#else
+    #error RTC clock source should be defined.
+#endif /* RTC_CLOCK_SOURCE_IRC40K */
 
     rcu_periph_clock_enable(RCU_RTC);
     rtc_register_sync_wait();
-//	RTC_BKP0 = 0x32f0;
-    /* wait until last write operation on RTC registers has finished */
- //   rtc_lwoff_wait();
-    /* set RTC prescaler: set RTC period to 1s */
- //   rtc_prescaler_set(32767);
-    /* wait until last write operation on RTC registers has finished */
-//    rtc_lwoff_wait();
+}
+
+/*!
+    \brief      use hyperterminal to setup RTC time and alarm
+    \param[in]  none
+    \param[out] none
+    \retval     none
+*/
+void rtc_setup(void)
+{
+    GlobalInfo.RtcData.rtc_factor_asyn = prescaler_a;
+    GlobalInfo.RtcData.rtc_factor_syn = prescaler_s;
+    GlobalInfo.RtcData.rtc_year = 0x18;
+    GlobalInfo.RtcData.rtc_day_of_week = RTC_THURSDAY;
+    GlobalInfo.RtcData.rtc_month = RTC_NOV;
+    GlobalInfo.RtcData.rtc_date = 0x29;
+    GlobalInfo.RtcData.rtc_display_format = RTC_24HOUR;
+    GlobalInfo.RtcData.rtc_am_pm = RTC_AM;
+
+
+    GlobalInfo.RtcData.rtc_hour = 0x16;
+    GlobalInfo.RtcData.rtc_minute =0x28;
+    GlobalInfo.RtcData.rtc_second = 0x00;
+
+	SetRtcTime(&GlobalInfo.RtcData);
+    RTC_BKP0 = BKP_VALUE;
+#if RTC_USE_ALARM
+    rtc_alarm_disable();
+    GlobalInfo.rtc_alarm.rtc_alarm_mask = RTC_ALARM_DATE_MASK|RTC_ALARM_HOUR_MASK|RTC_ALARM_MINUTE_MASK;
+    GlobalInfo.rtc_alarm.rtc_weekday_or_date = RTC_ALARM_DATE_SELECTED;
+    GlobalInfo.rtc_alarm.rtc_alarm_day = 0x31;
+    GlobalInfo.rtc_alarm.rtc_am_pm = RTC_AM;
+    GlobalInfo.rtc_alarm.rtc_alarm_hour = 03;
+    GlobalInfo.rtc_alarm.rtc_alarm_minute = 01;
+    GlobalInfo.rtc_alarm.rtc_alarm_second = 04;
+    rtc_alarm_config(&GlobalInfo.rtc_alarm);
+    rtc_show_time();
+    rtc_show_alarm(); 
+    rtc_interrupt_enable(RTC_INT_ALARM);  
+    rtc_alarm_enable();    
+#endif
+}
+
+void RtcInit(void)
+{
+    rtc_pre_config();
+#if 0
+	if (BKP_VALUE != RTC_BKP0)
+	{
+        rtc_setup(); 
+    }
+	else
+	{
+		rtc_show_time();
+	#if RTC_USE_ALARM
+        rtc_flag_clear(RTC_STAT_ALRM0F);
+//        exti_flag_clear(EXTI_17);
+        rtc_show_alarm();
+	#endif
+    }
+#endif
 }
 
 
@@ -77,6 +127,7 @@ void RtcInit(void)
 函数功能:   将Linux时间戳转换为当前的时间
 返回值  :   无
 ********************************************************/
+//char gStrfTime[32];
 int LinuxTickToDay(time_t timestamp, uint8_t *pDay)
 {
     struct tm *time_now;
@@ -89,10 +140,23 @@ int LinuxTickToDay(time_t timestamp, uint8_t *pDay)
     pDay[4] = time_now->tm_hour+8;
     pDay[5] = time_now->tm_min;
     pDay[6] = time_now->tm_sec;
+//	strftime(gStrfTime, sizeof(gStrfTime), "%D%T", time_now);
+	
     return CL_OK;
 }
 
-
+//time_t DayToTimeStamp(char* str)
+//{
+//#if 0
+//	struct tm time_now;
+//    time_t TimeStamp;
+//	
+//	strptime("20131120","%Y%m%d", &time_now);
+//	TimeStamp = mktime(&time_now);
+//	
+//    return TimeStamp;
+//#endif
+//}
 
 /*******************************************************
 函数原型:   char* GetCurrentTime(void)
@@ -103,25 +167,43 @@ int LinuxTickToDay(time_t timestamp, uint8_t *pDay)
 static char gTimeStr[32];
 char* GetCurrentTime(void)
 {
+#if 0
     uint32_t time;
     uint8_t day[8];
 	
-    time = rtc_counter_get();
+//    time = rtc_counter_get();
     LinuxTickToDay(time,day);
     sprintf(gTimeStr,"%4d%02u%02u %02u:%02u:%02u", day[1]+100+1900,day[2], day[3], day[4], day[5], day[6]);
+#else
+	rtc_current_time_get(&GlobalInfo.RtcData);
+	sprintf(gTimeStr,"%2x%02x%02x %02x:%02x:%02x", GlobalInfo.RtcData.rtc_year, GlobalInfo.RtcData.rtc_month, 
+		GlobalInfo.RtcData.rtc_date, GlobalInfo.RtcData.rtc_hour, GlobalInfo.RtcData.rtc_minute, GlobalInfo.RtcData.rtc_second);
+#endif
+	return gTimeStr;
+}
+
+uint8_t HEX2BCD(uint8_t bcd_data)    //BCD转为HEX子程序    
+{   
+    uint8_t temp; 
+
+    temp = (bcd_data / 10 * 16 + bcd_data % 10);  
 	
-    return gTimeStr;
-}
+	return temp;   
+}   
 
+uint8_t BCD2HEX(uint8_t hex_data)    //HEX转为BCD子程序     
+{   
+    uint8_t temp;   
+	
+    temp = (hex_data / 16 * 10 + hex_data % 16);   
+	
+    return temp;   
+} 
 
-void GetRtcTime(void* pRTCTime)
+void SetRtcTime(rtc_parameter_struct* rtc_initpara_struct)
 {
-    uint32_t time = 0;
-    time = rtc_counter_get();
-    LinuxTickToDay(time,pRTCTime);
+	rtc_init(rtc_initpara_struct);
 }
-
-
 
 /*******************************************************
 函数原型:   void SetRtcCount(time_t timestamp)
@@ -131,19 +213,25 @@ void GetRtcTime(void* pRTCTime)
 ********************************************************/
 void SetRtcCount(time_t timestamp)
 {
-    rtc_counter_set(timestamp);
+	uint8_t day[8];
+	
+    LinuxTickToDay(timestamp, day);
+	GlobalInfo.RtcData.rtc_year		 	= HEX2BCD(day[1]);
+	GlobalInfo.RtcData.rtc_month		= HEX2BCD(day[2]);
+	GlobalInfo.RtcData.rtc_date		 	= HEX2BCD(day[3]);
+	GlobalInfo.RtcData.rtc_day_of_week 	= HEX2BCD(day[0]);
+	GlobalInfo.RtcData.rtc_hour		 	= HEX2BCD(day[4]);
+	GlobalInfo.RtcData.rtc_minute 	 	= HEX2BCD(day[5]);
+	GlobalInfo.RtcData.rtc_second 	 	= HEX2BCD(day[6]);
+	GlobalInfo.RtcData.rtc_factor_asyn 	= prescaler_a;
+	GlobalInfo.RtcData.rtc_factor_syn 	= prescaler_s;
+	GlobalInfo.RtcData.rtc_am_pm 		= RTC_AM;		//0:AM  !0:PM
+	GlobalInfo.RtcData.rtc_display_format = RTC_24HOUR;
+
+	SetRtcTime(&GlobalInfo.RtcData);
 }
 
-/*******************************************************
-函数原型:   time_t GetTimeStamp(void)
-函数参数:   无
-函数功能:   获取当前的时间戳
-返回值  :   时间戳
-********************************************************/
-time_t GetTimeStamp(void)
-{
-	return rtc_counter_get();
-}
+
 
 
 

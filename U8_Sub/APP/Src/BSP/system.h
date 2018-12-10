@@ -2,6 +2,10 @@
 #define __SYSTEM_H__
 
 #include "includes.h"
+#include "gd32f3x0_rtc.h"
+
+
+#define USE_TIMER1		1
 
 typedef struct
 {
@@ -33,6 +37,8 @@ typedef struct
 	uint8_t UpperMonitorTestFlag;
 	uint32_t UpperMonitorTicks;
 	uint32_t ReportTicks;
+	rtc_parameter_struct RtcData;
+	rtc_alarm_struct  rtc_alarm;
 }GLOBAL_INFO_T;
 
 extern void WatchDogInit(void) ;
