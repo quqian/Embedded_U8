@@ -24,8 +24,9 @@ void SendTestPktAck(uint8_t cmd, uint8_t *pkt, uint8_t len)
     OUT_PKT_STR *pFrame = (void*)TestPktStrAck;
 
     pFrame->head.cmd = cmd;
-    memcpy(pFrame->data, (void*)pkt, len);
-	SendDebugPkt(0, pFrame, len);
+	pFrame->data[0] = 1;
+    memcpy(&pFrame->data[1], (void*)pkt, len);
+	SendDebugPkt(0, pFrame, len + 1);
 }
 
 
@@ -63,7 +64,7 @@ void DebugPktProc(OUT_PKT_STR *pBuff, uint16_t len)
 			dataLen = 1;
 		break;
 
-		case TEST_CMD_CARD:
+		case GET_CMD_U8_CARD:
 			GlobalInfo.TestCardFlag = 0xa5;
 		return;
 		//break;

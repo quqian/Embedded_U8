@@ -65,7 +65,7 @@ void Check_M1_Card()
 {
 #if 1
 	uint8_t PICC_ATQA[2],PICC_SAK[3],PICC_UID[4];
-//	uint8_t pCardId[8];
+	uint8_t pCardId[8];
 	
 	if (TypeA_CardActivate(PICC_ATQA,PICC_UID,PICC_SAK) == OK)
 	{
@@ -134,21 +134,25 @@ void Check_M1_Card()
 					StringToBCD(pCardId, (const char *)&GlobalInfo.current_usr_card_id[0]);
 				    PrintfData("¿¨ºÅ", &pCardId[0], 5);
 					#else
-					if(0x0f < block_data[4])
+					//if(0x0f < block_data[4])
 					{
 						sprintf((char*)GlobalInfo.current_usr_card_id, "%02x%02x%02x%02x%02x",
 							block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
                     	CL_LOG("block_data[4] = %02x ,block_data[5] = %02x ,block_data[6] = %02x ,block_data[7] = %02x ,block_data[8] = %02x .\n",
                         	block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
 					}
-					else
-					{
-						sprintf((char*)GlobalInfo.current_usr_card_id, "%01x%02x%02x%02x%02x",
-							block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
-                    	CL_LOG("block_data[4] = %02x ,block_data[5] = %02x ,block_data[6] = %02x ,block_data[7] = %02x ,block_data[8] = %02x .\n",
-                        	block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
-					}
-					PrintfData("¿¨ºÅ", &GlobalInfo.current_usr_card_id[0], 16);
+                    StringToBCD(pCardId, (const char *)&GlobalInfo.current_usr_card_id[0]);
+				    //PrintfData("¿¨ºÅ", &pCardId[0], 5);
+                    if(0 == (pCardId[4] & 0x0f))
+                    {
+                        CL_LOG("[¿¨ºÅ: %02x%02x%02x%02x%01x ]\n", pCardId[0], pCardId[1], pCardId[2], pCardId[3], pCardId[4]>>4);
+                    }
+                    else
+                    {
+                        CL_LOG("[¿¨ºÅ: %02x%02x%02x%02x%02x ]\n", pCardId[0], pCardId[1], pCardId[2], pCardId[3], pCardId[4]);
+                    }
+                    
+					//PrintfData("¿¨ºÅ", &GlobalInfo.current_usr_card_id[0], 16);
 					//memcpy((char*)GlobalInfo.current_usr_card_id, &block_data[4], 5);
 					#endif
 				
@@ -177,7 +181,7 @@ void ReadCardHandle(void)
 		{
 			GlobalInfo.TestCardFlag = 0;
 			Sc8042bSpeech(VOIC_READING_CARD);
-			SendTestPktAck(TEST_CMD_CARD, (void*)GlobalInfo.current_usr_card_id, sizeof(GlobalInfo.current_usr_card_id));
+			SendTestPktAck(GET_CMD_U8_CARD, (void*)GlobalInfo.current_usr_card_id, sizeof(GlobalInfo.current_usr_card_id));
 			return;
 	    }
 		else

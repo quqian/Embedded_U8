@@ -65,7 +65,7 @@ void BspInit(void)
 //    PlayVoice(VOIC_SHARE_CHARGE);       //¹²Ïí³äµç
 //    DelayMsWithNoneOs(900);
     printf("\r\n BspInit ok\n");
-    printf("\n===========================================================\n");
+    printf("\n===========================================================\n\n\n");
 }
 
 

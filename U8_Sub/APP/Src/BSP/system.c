@@ -56,7 +56,7 @@ void FeedWatchDog(void)
 void LoadSystemInfo(void)
 {
 //    const uint8_t station_id[8] = {0x00,0x00,0x00,0x66,0x77,0x88,0x99,0x00};
-    FlashReadSysInfo(&SystemInfo,sizeof(SystemInfo));
+    FlashReadSysInfo(&SystemInfo, sizeof(SystemInfo));
 	memset((void*)&GlobalInfo, 0, sizeof(GlobalInfo));
 	
     if ((MAGIC_NUM_BASE) == SystemInfo.magic_number) 
@@ -71,9 +71,9 @@ void LoadSystemInfo(void)
         memset((void*)&SystemInfo, 0, sizeof(SystemInfo));
         SystemInfo.magic_number = MAGIC_NUM_BASE;
 //        memcpy(SystemInfo.stationId, station_id,sizeof(station_id));
-        FlashWriteSysInfo(&SystemInfo,sizeof(SystemInfo));
+        FlashWriteSysInfo(&SystemInfo, sizeof(SystemInfo));
     }
-    CL_LOG("\r设备版本号: %d.%d.%d \n", FW_VERSION, FW_VERSION_SUB1, FW_VERSION_SUB2);
+    CL_LOG("\r设备版本号: fw_version = %d, subVersion1 = %d, subVersion2 = %d. \n", FW_VERSION, FW_VERSION_SUB1, FW_VERSION_SUB2);
     CL_LOG("\n\r文件编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
 }
 

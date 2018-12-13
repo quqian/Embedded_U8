@@ -10,6 +10,7 @@
 */
 
 #include "gd32f3x0_rtc.h"
+#include "usart.h"
 
 /*!
     \brief      reset most of the RTC registers
@@ -238,7 +239,11 @@ void rtc_current_time_get(rtc_parameter_struct* rtc_initpara_struct)
     temp_dr = (uint32_t)RTC_DATE;
     temp_pscr = (uint32_t)RTC_PSC;
     temp_ctlr = (uint32_t)RTC_CTL;
-  
+//  	printf("RTC_TIME temp_tr[%#x]\n", temp_tr);
+//	printf("RTC_DATE temp_dr[%#x]\n", temp_dr);
+//	printf("RTC_PSC temp_pscr[%#x]\n", temp_pscr);
+//	printf("RTC_CTL temp_ctlr[%#x]\n", temp_ctlr);
+	
     /* get current time and construct rtc_parameter_struct structure */
     rtc_initpara_struct->rtc_year = (uint8_t)GET_DATE_YR(temp_dr);
     rtc_initpara_struct->rtc_month = (uint8_t)GET_DATE_MON(temp_dr);
@@ -925,3 +930,4 @@ ErrStatus rtc_calibration_config(uint32_t window, uint32_t plus, uint32_t minus)
 
     return error_status;
 }
+
