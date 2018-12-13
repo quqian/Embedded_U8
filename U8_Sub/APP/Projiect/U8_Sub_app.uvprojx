@@ -81,8 +81,8 @@
           <AfterMake>
             <RunUserProg1>1</RunUserProg1>
             <RunUserProg2>1</RunUserProg2>
-            <UserProg1Name>fromelf --bin --output .\Objects\bin\U8_Sub_app.bin .\Objects\U8_Sub_app.axf</UserProg1Name>
-            <UserProg2Name>..\Src\aaa.bat</UserProg2Name>
+            <UserProg1Name>fromelf --bin --output deal_with_file\App_Bin\U8_Sub_app.bin .\Objects\U8_Sub_app.axf</UserProg1Name>
+            <UserProg2Name>..\Projiect\deal_with_file\aaa.bat</UserProg2Name>
             <UserProg1Dos16Mode>0</UserProg1Dos16Mode>
             <UserProg2Dos16Mode>0</UserProg2Dos16Mode>
             <nStopA1X>0</nStopA1X>
