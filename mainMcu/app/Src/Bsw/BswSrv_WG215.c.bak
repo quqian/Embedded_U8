@@ -1,0 +1,1427 @@
+/*
+ * @Author: zhoumin 
+ * @Date: 2018-10-12 18:25:48 
+ * @def :wifi模块管理
+ * @Last Modified by: zhoumin
+ * @Last Modified time: 2018-10-29 20:33:44
+ */
+#include "BswDrv_Usart.h"
+#include "BswDrv_Debug.h"
+#include "BswSrv_WG215.h"
+#include "BswSrv_System.h"
+
+
+// const char *at_cmd[WIFI_CMD_END] = 
+// {
+// 	"AT\r\n",
+// };
+
+/*wifi应用层接收buf*/
+static uint8_t rWifiFifoBuffer[256] = {0,};
+/*蓝牙应用层接收buf*/
+static uint8_t rBlueFifoBuffer[256] = {0,};
+
+/*wifi模块 AT指令接收buf*/
+static uint8_t WifiRecvAtBuff[RECEIVE_AT_LEN] = {0,};
+/*wifi模块底层数据接收buf*/
+static uint8_t wifiBlueBuffer[WIFI_BLUE_BUF_LEN] = {0,};
+
+/*wifi应用层接收fifo*/
+FIFO_S_t rWifiFifo;
+/*蓝牙应用层接收fifo*/
+FIFO_S_t rBlueFifo;
+/*wifi模块底层数据接收fifo*/
+FIFO_S_t wifiBlueFifo;
+
+
+uint16_t gWifiRxLen;
+
+static WIFI_MSG_ENUM WifiCmdStep = WIFI_AT_CMD;
+
+static uint8_t tcp_tx_error_times = 0;
+
+
+static int BSPSendWifiData(char *data, int len, char *ack, uint16_t waittime);
+static int BSPSendBlueData(char *data, int len);
+
+
+void OS_WIFI_Delays(uint16_t delay)
+{
+    uint16_t i;
+
+	for(i = 0; i < delay; i++)
+	{
+		osDelay(1000);
+	}
+
+	return;
+}
+
+
+int WifiCheckAck(char *cmd, char *ack, uint16_t waittime)
+{
+    char *FirstAddr = NULL;
+    uint8_t RecvData;
+    uint8_t RecvCount = 0;
+    int returnData = CL_FAIL;
+
+	uint8_t *pbuff = &WifiRecvAtBuff[0];
+	uint32_t FirstTime;
+
+    memset(pbuff, 0, RECEIVE_AT_LEN);
+	osDelay(50);
+    
+    FirstTime = osGetTimes();
+
+	while((uint32_t)(FirstTime + waittime) >= osGetTimes())
+	{
+		while(BswDrv_UsartGetOneData(WIFI_UART_INDEX,&RecvData) == CL_OK)
+	    {
+	        if(RecvData)
+	        {
+	            if (RECEIVE_AT_LEN > (RecvCount+2))
+	            {
+	                pbuff[RecvCount++] = RecvData;
+	            }
+	            else
+				{
+	                // CL_LOG("RecvCount = %d , RecvData = %d ,error.\n", RecvCount , RecvData);
+	            }
+	        }
+	        if((RECEIVE_AT_LEN - 2) <= RecvCount)
+	        {
+	            // CL_LOG("RecvCount = %d\n", RecvCount);
+	            break;
+	        }
+	    }
+
+	    FirstAddr = strstr((const char*)pbuff, (const char*)ack);
+	    if(FirstAddr)
+	    {
+			//获取版本号
+			if(strstr(cmd, "AT+VERS?"))
+	        {
+	   
+			}
+			//获取蓝牙名称
+			if(strstr(cmd, "AT+NAME?"))
+	        {
+
+			}
+			            
+	        returnData = CL_OK;
+			break;
+	    }
+		osDelay(20);
+	}
+
+	#ifdef WG215_DBG
+	CL_LOG("WifiCheckAck=%s \r\n",pbuff);
+	#endif
+	
+    return returnData;
+}
+
+int WifiSendCmd(char *cmd, char *ack, uint16_t waittime, int flag)
+{
+	uint8_t returnData = 1;
+
+	#ifdef WG215_DBG
+	CL_LOG("WifiSendCmd=%s \r\n",cmd);
+	#endif
+    BswDrv_UsartSend(WIFI_UART_INDEX,(void *)cmd, strlen(cmd));
+	// UsartSend(portIndex, (void *)cmd, strlen(cmd));
+	
+    if ((ack == NULL) || (waittime == 0))
+	{
+        return CL_OK; 
+    }
+    if (CL_OK == WifiCheckAck(cmd, ack, waittime)) 
+	{
+        returnData = CL_OK; /*check success, retrun 0*/
+    }
+	else
+	{
+        returnData = (1 == flag) ? 0 : 1;
+    }
+	
+	return returnData;
+}
+
+int WifiSendCmdHandle(char *cmd, char *ack, uint16_t waittime)
+{
+	if(0 == WifiSendCmd(cmd, ack, waittime, 0))
+	{
+	    // printf("WifiCmdStep = [%d], cmd send OK.\n", WifiCmdStep);
+	    WifiCmdStep++;
+	    return CL_OK;
+	}
+    
+    return CL_FAIL;
+}
+
+
+
+int WifiBuleSendATCom(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiDisconnectServer(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CIPCLOSE\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiBuleReset(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+RST\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleSetClient(uint16_t waittime, uint8_t Init)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	sprintf(CmdBuff, "AT+BLEINIT=%d\r\n", Init);
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleSetName(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+	char name[32] = {0,};
+
+	strcpy(name, GlobalInfo.BlueName);
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	sprintf(CmdBuff, "AT+BLENAME=\"%s\"\r\n", name);
+	CL_LOG("发送设置蓝牙名字命令[%s].\n", CmdBuff);
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleSetBLEADVPARAM(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+BLEADVPARAM=50,50,0,0,7\r\n");
+	//CL_LOG("[%s].\n", CmdBuff);
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleSetBLEADVDATA(uint16_t waittime)
+{
+	char  CmdBuff[128] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+BLEADVDATA=\"0201061AFF4C000215FDA50693A4E24FB1AFCFC6EB07647825273CB9C69C\"\r\n");
+	#ifdef WG215_DBG
+	CL_LOG("设置广播数据[%s].\n", CmdBuff);
+	#endif
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleScanRSPDATA(uint16_t waittime)
+{
+	char  CmdBuff[128] = {0,};
+	char  StrBuff[4] = {0,};
+	char  NameBuff[64] = {0,};
+    uint8_t i = 0;
+	
+	memset(NameBuff, 0, sizeof(NameBuff));
+    for(i = 0; i < strlen(GlobalInfo.BlueName); i++)
+    {
+    	memset(StrBuff, 0, sizeof(StrBuff));
+		sprintf(StrBuff, "%01X%01X", (((uint8_t)GlobalInfo.BlueName[i])/16), (uint8_t)GlobalInfo.BlueName[i]%16);
+		strcat(NameBuff, StrBuff);
+    }
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	sprintf(CmdBuff, "AT+BLESCANRSPDATA=\"%02X09%s\"\r\n", (strlen(GlobalInfo.BlueName) + 1), NameBuff);
+	#ifdef WG215_DBG
+	CL_LOG("设置扫描响应数据[%s].\n", CmdBuff);
+	#endif
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleCreatGATTSSRVCRE(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+BLEGATTSSRVCRE\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleStartGATTSSRVCRE(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+BLEGATTSSRVSTART\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int BuleStartBroadCast(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+BLEADVSTART\r\n");
+
+	if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiBuleCheckATCmd(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT\r\n");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiBuleCheckVERCmd(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+		
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+VER?\r\n");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+
+int WifiBlueSetATE(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+		
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "ATE0\r\n");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+    return CL_FAIL;
+}
+
+int WifiBuleSetStaApMode(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+		
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CWMODE=1\r\n");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiBuleGetStaApMode(uint16_t waittime)
+{
+	char  CmdBuff[32] = {0,};
+		
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CWMODE?\r\n");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+
+int WifiConnecteAp(uint16_t waittime)
+{
+	char CmdBuff[64] = {0,};
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+    sprintf(CmdBuff, "AT+CWJAP=%s,%s\r\n", SystemInfo.WifiName, SystemInfo.WifiPasswd);
+	
+	// #ifdef WG215_DBG
+	CL_LOG("连网命令CmdBuff = [%s].\n", CmdBuff);
+	// #endif
+
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiEnableDns(uint16_t waittime)
+{
+	char CmdBuff[64] = {0,};
+    	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	sprintf(CmdBuff, "AT+CIPDOMAIN=\"%s\"\r\n", NET_SERVER_IP);
+	CL_LOG("域名解析命令 [%s].\n", CmdBuff);
+
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiEnableDHCP(uint16_t waittime)
+{
+	char CmdBuff[32] = {0,};
+    	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CWDHCP=1,1\r\n");
+
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiGetDHCPState(uint16_t waittime)
+{
+	char CmdBuff[32] = {0,};
+
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CWDHCP?\r\n");
+
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiGetLocalIP(uint16_t waittime)
+{
+	char CmdBuff[32] = {0,};
+	char ack[16] = {0,};
+    	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+CIFSR\r\n");
+	memset(ack, 0, sizeof(ack));
+	strcpy(ack, "OK");
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, ack, waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiConnecteServer(uint16_t waittime,char *host,uint16_t port)
+{
+	char CmdBuff[64] = {0,};
+	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+    sprintf(CmdBuff, "AT+CIPSTART=\"TCP\",\"%s\",%d\r\n", host, port);
+	CL_LOG("连服务器命令[%s].\n", CmdBuff);
+	
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiSetTransMode(uint16_t waittime, uint8_t Mode)
+{
+	char CmdBuff[64] = {0,};
+	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+//	strcpy(CmdBuff, "AT+CIPMODE=%01x\r\n", Mode);
+    sprintf(CmdBuff, "AT+CIPMODE=%01x\r\n", Mode);
+	CL_LOG("设置发送方式命令[%s].\n", CmdBuff);
+
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+int WifiPingIP(uint16_t waittime)
+{
+	char CmdBuff[64] = {0,};
+	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	strcpy(CmdBuff, "AT+PING=\"www.baidu.com\"\r\n");
+	CL_LOG("Ping包[%s].\n", CmdBuff);
+
+    if(CL_OK == WifiSendCmdHandle(CmdBuff, "OK", waittime))
+	{
+		return CL_OK;
+	}
+	
+    return CL_FAIL;
+}
+
+
+int BSPSendBlueData(char *data, int len)
+{
+	int res = 1;
+	
+    BswDrv_UsartSend(WIFI_UART_INDEX, (void*)data, len);
+
+	PrintfData("蓝牙底层发送数据", (void*)data, len);
+	
+	return res;
+}
+
+int BSPSendWifiData(char *data, int len, char *ack, uint16_t waittime)
+{
+	int res = 1;
+    BswDrv_UsartSend(WIFI_UART_INDEX, (void*)data, len);
+	
+    if((ack == NULL) || (waittime == 0))
+	{
+		return CL_OK;
+	}
+    if(CL_OK == WifiCheckAck( NULL, ack, waittime)) 
+	{
+        res = 0; /*check success, retrun 0*/
+    }
+	else
+	{
+		CL_LOG("Wifi发送数据错误! \n");
+	}
+	
+	return res;
+}
+
+///////////////////////////http//////////////////////////////////////////
+
+int HttpSendCmd(char *host,uint16_t port)
+{
+	uint8_t i = 0;
+    uint8_t k = 0;
+	char cmd_req[32] = {0,};
+	char cmd_ack[32] = {0,};
+	int ret = CL_FAIL;
+	
+#if 1
+
+	for(k = 0; k < 6; k++)
+	{
+		BSPSendWifiData((char*)"+++", strlen("+++"), NULL, 0);
+		osDelay(50);
+	}
+	for(k = 0; k < 8; k++)
+	{
+		if(CL_FAIL == WifiBuleReset(1000))
+		{
+			CL_LOG("WifiBuleReset错误, [%d]error! \n", i);
+			OS_WIFI_Delays(1);
+			if(5 < k)
+			{
+				CL_LOG("hhhhhhhhhhhhhhhhhhhhhhhhhhhhhhh.\n");
+				return CL_FAIL;
+			}
+		}
+		else
+		{
+			OS_WIFI_Delays(1);
+			break;
+		}
+	}
+#if 0
+	for(k = 0; k < 6; k++)
+	{
+		if(CL_FAIL == WifiConnecteAp(1000))
+		{
+			CL_LOG("WifiConnecteAp错误, [%d]error! \n", i);
+			vTaskDelay(5000);
+		}
+		else
+		{
+			vTaskDelay(1000);
+			break;
+		}
+	}
+#else
+	OS_WIFI_Delays(8);
+#endif
+	for(k = 0; k < 8; k++)
+	{
+		if(CL_FAIL == WifiConnecteServer(5000,host,port))
+		{
+			CL_LOG("WifiConnecteServer错误, [%d]error! \n", i);
+			OS_WIFI_Delays(1);
+			if(5 < k)
+			{
+				CL_LOG("kkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkkk.\n");
+				return CL_FAIL;
+			}
+		}
+		else
+		{
+			OS_WIFI_Delays(2);
+			break;
+		}
+	}
+	for(k = 0; k < 8; k++)
+	{
+		if(CL_FAIL == WifiSetTransMode(2000, 1))
+		{
+			CL_LOG("WifiSetTransMode错误, [%d]error! \n", i);
+			OS_WIFI_Delays(1);
+			if(5 < k)
+			{
+				CL_LOG("fffffffffffffffffffffffffffff.\n");
+				return CL_FAIL;
+			}
+		}
+		else
+		{
+			OS_WIFI_Delays(1);
+			break;
+		}
+	}
+	for(k = 0; k < 6; k++)
+	{
+		memset(cmd_ack, 0, sizeof(cmd_ack));
+		strcpy(cmd_ack, "OK");
+		memset(cmd_req, 0, sizeof(cmd_req));
+		strcpy(cmd_req,"AT+CIPSEND\r\n");
+		CL_LOG("发送数据命令[%s].\n", cmd_req);
+		if (0 != (ret = WifiSendCmd(cmd_req, cmd_ack, 3000, 0)))
+		{
+			OS_WIFI_Delays(1);
+			CL_LOG("call WifiSendCmd=%d, error.\n", ret);
+			{
+				CL_LOG("qqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqqq.\n");
+				return CL_FAIL;
+			}
+		}
+		else
+		{
+			OS_WIFI_Delays(1);
+			break;
+		}
+	}
+#endif
+
+	return ret;
+}
+
+
+int WifiCheckResnospace(void)
+{
+    uint8_t data;
+	uint32_t WaitTime = osGetTimes();
+	
+	while(((uint32_t)(20 + WaitTime) >= osGetTimes()) || ((0 == gWifiRxLen) && ((uint32_t)(2000 + WaitTime) >= osGetTimes())))
+	{
+		while((CL_OK == FIFO_S_Get(&wifiBlueFifo, &data)))
+		{
+			// printf("WifiData = [%c],[0x%x] \r\n", data, data);
+	        if (gWifiRxLen < WIFI_BLUE_BUF_LEN) 
+			{
+	            wifiBlueBuffer[gWifiRxLen] = data;
+				gWifiRxLen++;
+	        }
+			WaitTime = osGetTimes();
+	    }
+	}
+
+	wifiBlueBuffer[gWifiRxLen] = '\0';
+	
+    return 0;
+}
+
+
+int HttpSendData(uint8_t* data, uint16_t len)
+{
+	BswDrv_UsartSend(WIFI_UART_INDEX, (void*)data, len);
+	
+	while((CL_OK == FIFO_S_Get(&wifiBlueFifo, &data)))
+	{
+
+	}
+}
+
+int HttpGetData(uint8_t* data, uint16_t len)
+{
+	uint8_t i = 0;
+    int ret = CL_FAIL;
+
+    for(i = 0; i < 3; i++)
+	{
+		FIFO_S_Flush(&wifiBlueFifo);
+		gWifiRxLen = 0;
+
+        if (CL_OK == (ret = BSPSendWifiData((char*)data, len, "HTTP", 200))) 
+		{
+            //CL_LOG("Wifi发送数据成功! \n");
+            break;
+        }
+		else
+		{
+        	CL_LOG("Wifi发送数据错误! \n");
+			OS_WIFI_Delays(1);
+        }
+    }
+	
+    return ret;
+}
+
+
+
+int HttpGetServerData(uint32_t ReceiveLen, uint32_t NextLen, char* HttpIP, char* DirectoryPath)
+{
+	uint32_t len = 0;
+	static uint8_t protoBuff[500] = {0,};
+	int res = CL_FAIL;
+	uint32_t i = 0;
+
+	for(i = 0; i < 6; i++)
+	{
+		sprintf((char*)protoBuff,"GET %s HTTP/1.1\r\nHost: %s\r\nConnection: keep-alive\r\nCache-Control: no-cache\r\nUser-Agent: Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1599.101 Safari/537.36\r\nAccept: */*\r\nAccept-Encoding: gzip,deflate\r\nAccept-Language: zh-CN,eb-US;q=0.8\r\nRange: bytes=%d-%d\r\n\r\n", DirectoryPath, HttpIP, ReceiveLen, NextLen);
+		// sprintf((char*)protoBuff,"GET %s HTTP/1.1\r\nHost: %s:%s\r\nConnection: keep-alive\r\nCache-Control: no-cache\r\nUser-Agent: Mozilla/5.0 (Windows NT 5.1) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/30.0.1599.101 Safari/537.36\r\nAccept: */*\r\nAccept-Encoding: gzip,deflate\r\nAccept-Language: zh-CN,eb-US;q=0.8\r\nRange: bytes=%d-%d\r\n\r\n", DirectoryPath, HttpIP, (char*)NET_SERVER_PORT, ReceiveLen, NextLen);
+		// CL_LOG("发送http协议protoBuff=[%s].\n", protoBuff);
+		len = strlen((char*)protoBuff);
+	//    CL_LOG("协议len=[%d].\n", len);
+		if(CL_OK == (res = HttpGetData(protoBuff, len)))
+		{
+			WifiCheckResnospace();
+			break;
+		}
+	}
+	return res;
+}
+
+
+// int GetBinHead(uint32_t StartAddr, uint32_t EndAddr,char *HttpIP,char* FilePath)
+// {
+// 	char *pReturnAddr1 = NULL;
+// 	char *pReturnAddr2 = NULL;
+// 	char *pReturnAddr3 = NULL;
+// 	char *pReturnAddr4 = NULL;
+// 	char *pReturnAddr5 = NULL;
+// 	int ret = CL_FAIL;
+// 	uint32_t i = 0;
+// 	uint8_t TimesFlag = 0;
+// 	uint32_t BinSize = 0;
+
+// GetHttpData:
+// 	if(6 <= TimesFlag++)
+// 	{
+// 		CL_LOG("升级失败[2]! 升级失败! 升级失败!\n");
+// 		NVIC_SystemReset();
+// 	}
+	
+// 	if(CL_FAIL == HttpGetServerData(StartAddr, EndAddr, HttpIP, FilePath))
+// 	{
+// 		goto GetHttpData;
+// 	}
+// 	pReturnAddr1 = strstr((const char*)wifiBlueBuffer, (const char*)"Content-Range: bytes");
+// 	pReturnAddr2 = strstr((const char*)pReturnAddr1, (const char*)"bytes 0-31/");
+// 	//CL_LOG("地址地址地址地址地址=[%x], [%x], [%x], [%x].\n", (uint32_t)pReturnAddr2, (uint32_t)pReturnAddr1, *((uint8_t*)pReturnAddr2 + strlen("bytes 0-15/")), *((uint8_t*)pReturnAddr2 + 11));
+// 	pReturnAddr3 = (pReturnAddr2 + 11);
+// 	pReturnAddr2 = strstr((const char*)pReturnAddr3, (const char*)"\r\n\r\n");
+// 	//CL_LOG("=[%x], [%x], [%x].\n", (uint32_t)pReturnAddr3, (uint32_t)pReturnAddr2, (uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3);
+// 	//CL_LOG("head协议头长度=[%x], [%x], [%x].\n", (uint32_t)pReturnAddr2, (uint32_t)WifiBuffer, ((uint32_t)pReturnAddr2 - (uint32_t)WifiBuffer));
+// 	if((6 >= ((uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3)))
+// 	{
+// 		BinSize = 0;
+// 		for(i = 0; i < ((uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3); i++)
+// 		{
+// 			if((0 <= (*((uint8_t*)pReturnAddr3 + i) - '0')) && (9 >= (*((uint8_t*)pReturnAddr3 + i) - '0')))
+// 			{
+// 				CL_LOG("bin[%x], [%x].\n", i, *((uint8_t*)pReturnAddr3 + i));
+// 			}
+// 			else
+// 			{
+// 				CL_LOG("数据接收错误,[%x], [%x], [%x].\n", (uint32_t)pReturnAddr3, (uint32_t)pReturnAddr2, (uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3);
+// 				goto GetHttpData;
+// 			}
+// 			BinSize += (*((uint8_t*)pReturnAddr3 + i) - '0') * pow(10, (((uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3) - 1 - i));
+// 		}
+
+// 		if((uint32_t)204800 <= BinSize)
+// 		{
+// 			CL_LOG("bin文件大小[%d], 错误!!!.\n", BinSize);
+// 			goto GetHttpData;
+// 		}
+// 		else
+// 		{
+// 			CL_LOG("bin文件大小为[%d].\n", BinSize);
+// 		}
+// 		pReturnAddr4 = (pReturnAddr2 + 4);
+// 		PrintfData("hhhhhhhhhhhhhhhhhhhhhhhh", (uint8_t*)pReturnAddr4, 32);
+// 		pReturnAddr5 = (pReturnAddr4 + 16);
+// 		PrintfData("kkkkkkkkkkkkkkkkkkk", (uint8_t*)pReturnAddr5, 16);
+
+// 		if ((0xaa == pReturnAddr4[0]) && (0x55 == pReturnAddr4[1])) 
+// 		{
+//             CL_LOG("get aa 55 ok,fwCnt=%d.\n", pReturnAddr4[2]);
+//             if (0 == pReturnAddr4[2])
+// 			{
+//                 CL_LOG("fwCnt=%d,error.\n", pReturnAddr4[2]);
+//                 goto GetHttpData;
+//             }
+
+// 			CL_LOG("升级包的版本号 x6FwVer = %d.\n", pReturnAddr4[3]);
+//         }
+// 		else
+// 		{
+//             CL_LOG("head=%02x,%02x,%02x,%02x,error.\n", pReturnAddr4[0], pReturnAddr4[1], pReturnAddr4[2], pReturnAddr4[3]);
+//             goto GetHttpData;
+//         }
+		
+// 		pFwInfo = (void*)&pReturnAddr5[0];
+// 		if(BinSize != (pFwInfo->size + 32))
+// 		{
+// 			goto GetHttpData;
+// 		}
+//         GlobalInfo.fsize = pFwInfo->size;
+//         GlobalInfo.checkSum = pFwInfo->checkSum;
+//         if (0 == memcmp(gpFwName[CHARGER_TYPE_U8], pFwInfo->name, strlen(gpFwName[CHARGER_TYPE_U8]))) 
+// 		{
+//             GlobalInfo.DeviceType = CHARGER_TYPE_U8;
+//             CL_LOG("check U8 fw name ok, fsize=%d, chsum_in=%#x.\n", GlobalInfo.fsize, GlobalInfo.checkSum);
+//         }
+// 		else
+// 		{
+//             CL_LOG("fw name=%s, error.\n", pFwInfo->name);
+//             goto GetHttpData;
+//         }
+// 		ret = CL_OK;
+// 	}
+// 	else
+// 	{
+// 		CL_LOG("http接收数据错误,[%x], [%x], [%x].\n", (uint32_t)pReturnAddr3, (uint32_t)pReturnAddr2, (uint32_t)pReturnAddr2 - (uint32_t)pReturnAddr3);
+// 		goto GetHttpData;
+// 	}
+
+// 	return ret;
+// }
+
+
+#define HTTP_GET_DATA_LEN		256
+
+int BswSrv_WIFI_HttpGet(char *httpurl)
+{
+	int ret = CL_FAIL;
+	uint32_t getLen;
+	uint32_t StartAddr = 0;
+	uint32_t EndAddr = 0;
+	uint32_t cfize = 0;
+	uint32_t retLen1, retLen2;
+	char *pReturnAddr1 = NULL;
+	char *pReturnAddr2 = NULL;
+	char *pReturnAddr3 = NULL;
+	char *pReturnAddr4 = NULL;
+	uint32_t UpgradeTicks = 0;
+
+	char HttpIP[40] = {0};
+	char FilePath[80] = {0};
+	char lenStr[10] = {0};
+
+	//解析url
+	char* sp1 = strchr(httpurl, '/');
+    strncpy(HttpIP,httpurl,sp1-httpurl);
+	strcpy(FilePath,sp1);
+
+	// char HttpIP[32]="m.evclub.com";
+	// char FilePath[64]="/downloads/boxfw/tmp/7319.bin";
+
+	// char HttpIP[32]="device.sharecharger.com";
+	// char FilePath[]= "//resource//DEVICE_UPGRADE_PACKAGE/release/2018/1016/7319.bin";	
+
+    CL_LOG("HttpIP=%s, FilePath=%s.\n", HttpIP, FilePath);
+	for(uint8_t k = 0; k < 3; k++)
+	{
+		if(CL_OK == HttpSendCmd(HttpIP,80))
+		{
+	        ret = CL_OK;
+		}else{
+			CL_LOG("后台请求升级失败! \n");
+			break;
+		}
+		CL_LOG("后台请求升级, 开始升级! \n");
+		getLen = 128;
+	    if(CL_OK == ret)
+		{
+			StartAddr = 0;
+			EndAddr = getLen + StartAddr - 1;
+			retLen2 = 0;
+			retLen1 = 0;
+
+			UpgradeTicks = osGetTimes();
+			while(1)
+			{
+				if((240*1000) < (uint32_t)(osGetTimes() - UpgradeTicks))
+				{
+					CL_LOG("http 升级超时 ! \n");
+					break;
+				}
+				if(CL_FAIL == HttpGetServerData(StartAddr, EndAddr, HttpIP, FilePath))
+				{
+					CL_LOG("升级失败[1] ! \n");
+					break;
+				}
+
+				// pReturnAddr1 = strstr((const char*)wifiBlueBuffer, (const char*)"Content-Range: bytes");
+				// if(pReturnAddr1 == NULL)
+				// {
+				// 	CL_LOG("升级失败[2] ! \n");
+				// 	continue;
+				// }
+				// pReturnAddr1 = strstr((const char*)pReturnAddr1, (const char*)"bytes");
+				// pReturnAddr2 = strstr((const char*)pReturnAddr1, (const char*)"-");
+				// pReturnAddr3 = strstr((const char*)pReturnAddr1, (const char*)"/");
+				// pReturnAddr4 = strstr((const char*)pReturnAddr1, (const char*)"\r\n\r\n");
+
+				// if(pReturnAddr1 == NULL || pReturnAddr2==NULL || pReturnAddr3==NULL || pReturnAddr4 == NULL)
+				// {
+				// 	CL_LOG("升级失败[3] ! \n");
+				// 	continue;
+				// }
+				// memset(lenStr,0,10);
+				// strncpy(lenStr,pReturnAddr2+1,(pReturnAddr3-pReturnAddr2-1));
+				// retLen1 = atoi(lenStr);
+				
+				// //下载文件总大小
+				// if(retLen2 == 0)
+				// {
+				// 	memset(lenStr,0,10);
+				// 	strncpy(lenStr,pReturnAddr3+1,(pReturnAddr4-pReturnAddr3-1));
+				// 	retLen2 = atoi(lenStr);
+				// }
+				// pReturnAddr4 += 4;
+
+				pReturnAddr1 = strstr((const char*)wifiBlueBuffer, (const char*)"Content-Range: bytes");
+				if(pReturnAddr1 == NULL)
+				{
+					CL_LOG("升级失败[2] ! \n");
+					continue;
+				}
+				pReturnAddr2 = strstr((const char*)pReturnAddr1, (const char*)"bytes ");
+				if(pReturnAddr2 == NULL)
+				{
+					CL_LOG("升级失败[3] ! \n");
+					continue;
+				}
+				pReturnAddr3 = strstr((const char*)pReturnAddr2, (const char*)"\r\n\r\n");
+				if(pReturnAddr3 == NULL)
+				{
+					CL_LOG("升级失败[4] ! \n");
+					continue;
+				}
+				pReturnAddr3 += 4;
+				if(pReturnAddr3 == NULL)
+				{
+					CL_LOG("升级失败[5] ! \n");
+					continue;
+				}
+
+				// PrintfData("pReturnAddr2=",pReturnAddr4,16);
+		
+				StartAddr += getLen;
+				EndAddr = getLen + StartAddr - 1;
+				cfize += getLen;
+
+				// CL_LOG("retLen1=%d retLen2=%d \r\n",retLen1,retLen2);
+				 CL_LOG("total %d,get %d, [%d%%].\n", 75584, cfize, cfize * 100 / 75584);
+
+				// if( retLen1 == (retLen2-1) )
+				// {
+				// 	CL_LOG("-----------httt download finish----------\r\n");
+				// 	return CL_OK;
+				// }
+				if(cfize >= 75584)
+				{
+					CL_LOG("-----------http success, \r\n");
+					return CL_OK;
+				}
+			}
+		}
+	}
+	
+	CL_LOG("退出升级..\r\n");
+    return CL_FAIL;
+}
+
+///////////////////////////////////////////外部接口///////////////////////////////////////////////////
+
+void BswSrv_WIFI_CloseSocket(void)
+{
+	CL_LOG("WIFI close socket.and reconnect.\r\n");
+
+	WifiDisconnectServer(1000);
+
+	GlobalInfo.is_socket_0_ok = 0;
+    GlobalInfo.isLogin = 0;
+	GlobalInfo.isRecvServerData = 0;
+}
+
+int BswSrv_WIFI_SendSocketData(uint8_t* data, uint16_t len)
+{
+	uint8_t i = 0;
+    char cmd_req[32] = {0,};
+    int res=0;
+
+    if (1 != GlobalInfo.is_socket_0_ok) 
+	{
+       CL_LOG("socket 0 is closed.\n");
+       return -1;
+    }
+
+    for(i = 0; i < 3; i++)
+	{
+		sprintf(cmd_req,"AT+CIPSEND=%d\r\n", len);
+		#ifdef WG215_DBG
+        CL_LOG("发送数据长度命令[%s].\n", cmd_req);
+		#endif
+        if (0 != (res = WifiSendCmd(cmd_req, "OK", 3000, 0)))
+		{
+            CL_LOG("call WifiSendCmd=%d, error.\n",res);
+        }
+        if (CL_OK == (res = BSPSendWifiData((char*)data, len, "SEND OK", 3000))) 
+		{
+            //CL_LOG("Wifi发送数据成功! \n");
+            break;
+        }
+		else
+		{
+        	CL_LOG("Wifi发送数据错误! \n");
+			tcp_tx_error_times++;
+            osDelay(100);
+        }
+    }
+
+    if (res == 0) 
+	{
+        tcp_tx_error_times = 0;
+    }
+	else 
+	{
+        CL_LOG("send fail: res=%d,tcp_tx_error_times=%d.\n",res,tcp_tx_error_times);
+        if (tcp_tx_error_times >= TX_FAIL_MAX_CNT) 
+		{
+            tcp_tx_error_times = 0;
+			CL_LOG("send fail,try to restart net.\n");
+			BswSrv_WIFI_CloseSocket();
+        }
+    }
+
+    return res;
+}
+
+
+int BswSrv_Bule_SendData(uint8_t* BlueData, uint8_t len)
+{
+	char  CmdBuff[64] = {0,};
+	
+    memset(CmdBuff, 0, sizeof(CmdBuff));
+	sprintf(CmdBuff, "AT+BLEGATTSNTFY=0,1,2,%d\r\n", len);
+    
+	CL_LOG("蓝牙发送数据指令[%s].\n", CmdBuff);
+    
+	if(0 == WifiSendCmd(CmdBuff, ">", 2000, 1))
+	{
+		;
+	}
+
+	BSPSendBlueData((char *)BlueData, len);
+	
+    return CL_FAIL;
+}
+
+
+int BswSrv_WG215_StartUp(void)
+{
+	uint8_t step = WIFI_AT_CMD;
+	uint8_t retry = 0;
+
+	for(uint8_t i = 0; i < 5; i++)
+	{
+		BSPSendWifiData((char*)"+++", strlen("+++"), NULL, 0);
+	}
+
+	while(1)
+	{
+		switch (step)
+		{
+			case WIFI_AT_CMD:
+				if(CL_OK == WifiBuleSendATCom(1000))
+				{
+					step = WIFI_AT_RST_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry++ > 10)
+					{
+						return CL_FAIL;
+					}
+				}
+			break;
+			case WIFI_AT_RST_CMD:
+				if(CL_OK == WifiBuleReset(1000))
+				{
+					step = WIFI_AT_ATE;
+					retry = 0;
+				}
+				else
+				{
+					if(retry++ > 3)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case WIFI_AT_ATE:
+				if(CL_OK == WifiBlueSetATE(1000))
+				{
+					return CL_OK;
+				}
+				else
+				{
+					if(retry++ > 3)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+		}
+		osDelay(200);
+	}
+}
+
+int BswSrv_WG215_StartBlue(void)
+{
+	uint8_t step = BLUE_SET_AT_BLEINIT_CMD;
+	uint8_t retry = 0;
+
+	while(1)
+	{
+		switch (step)
+		{
+			case BLUE_SET_AT_BLEINIT_CMD:
+				if(CL_OK == BuleSetClient(1000, 2))
+				{
+					step = BLUE_AT_BLENAME_CMD;
+					retry = 0;
+				}else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLENAME_CMD:
+				if(GlobalInfo.BlueName == NULL)
+				{
+					step = BLUE_AT_BLEADVPARAM_CMD;
+					retry = 0;
+				}
+				else{
+					if(CL_OK == BuleSetName(1000))
+					{
+						step = BLUE_AT_BLEADVPARAM_CMD;
+						retry = 0;
+					}else
+					{
+						if(retry ++ >5)
+						{
+							return CL_FAIL;
+						}
+					}
+				}
+				break;
+			case BLUE_AT_BLEADVPARAM_CMD:
+				if(CL_OK == BuleSetBLEADVPARAM(1000))
+				{
+					step = BLUE_AT_BLEADVDATA_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLEADVDATA_CMD:
+				if(CL_OK == BuleSetBLEADVDATA(1000))
+				{
+					step = BLUE_AT_BLESCANRSPDATA_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLESCANRSPDATA_CMD:
+				if(CL_OK == BuleScanRSPDATA(1000))
+				{
+					step = BLUE_AT_BLEGATTSSRVCRE_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLEGATTSSRVCRE_CMD:
+				if(CL_OK == BuleCreatGATTSSRVCRE(1000))
+				{
+					step = BLUE_AT_BLEGATTSSRVSTART_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLEGATTSSRVSTART_CMD:
+				if(CL_OK == BuleStartGATTSSRVCRE(1000))
+				{
+					step = BLUE_AT_BLEADVSTART_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+			case BLUE_AT_BLEADVSTART_CMD:
+				if(CL_OK == BuleStartBroadCast(1000))
+				{
+					return CL_OK;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+				break;
+		}
+		osDelay(200);
+	}
+	
+}
+
+
+int BswSrv_WG215_StartWifi(void)
+{
+	uint8_t step = WIFI_SET_AT_CWMODE_CMD;
+	uint8_t retry = 0;
+
+	while(1)
+    {
+		switch(step)
+		{
+			case WIFI_SET_AT_CWMODE_CMD:
+				if(CL_OK == WifiBuleSetStaApMode(2000))
+				{
+					step = WIFI_AT_CWJAP_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+			break;
+			case WIFI_AT_CWJAP_CMD:
+				if(CL_OK == WifiConnecteAp(8000))
+				{
+					step = WIFI_AT_CIPDOMAIN_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+			break;
+			case WIFI_AT_CIPDOMAIN_CMD:
+				if(CL_OK == WifiEnableDns(2000))
+				{
+					step = WIFI_SET_AT_CWDHCP_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+			break;
+			case WIFI_SET_AT_CWDHCP_CMD:
+				if(CL_OK == WifiEnableDHCP(2000))
+				{
+					step = WIFI_AT_CIPSTART_CMD;
+					retry = 0;
+				}
+				else
+				{
+					if(retry ++ >5)
+					{
+						return CL_FAIL;
+					}
+				}
+			break;
+			case WIFI_AT_CIPSTART_CMD:
+				if(CL_OK == WifiConnecteServer(5000,NET_SERVER_IP,NET_SERVER_PORT))
+				{
+					return CL_OK;
+				}
+				if(retry ++ >5)
+				{
+					return CL_FAIL;
+				}
+			break;
+		}
+	}
+}
+
+int BswSrv_Blue_Disconnent(void)
+{
+	for(uint8_t i = 0; i < 3; i++)
+	{
+		if(BuleStartBroadCast(1000) == CL_OK)
+		{
+			return CL_OK;
+		}
+	}
+	
+	return CL_FAIL;
+}
+
+void BswSrv_WG215_Init(void)
+{
+	WIFI_POWER_ON();
+	
+	//wifi底层接收数据fifo
+	FIFO_S_Init(&wifiBlueFifo, (void*)wifiBlueBuffer, sizeof(wifiBlueBuffer));
+
+	//蓝牙和wifi应用层数据接收fifo
+    FIFO_S_Init(&rWifiFifo, (void*)rWifiFifoBuffer, sizeof(rWifiFifoBuffer));
+    FIFO_S_Init(&rBlueFifo, (void*)rBlueFifoBuffer, sizeof(rBlueFifoBuffer));
+}
+
