@@ -134,13 +134,26 @@ void Check_M1_Card()
 					StringToBCD(pCardId, (const char *)&GlobalInfo.current_usr_card_id[0]);
 				    PrintfData("¿¨ºÅ", &pCardId[0], 5);
 					#else
-					//if(0x0f < block_data[4])
+					if(0x0f < block_data[4])
 					{
 						sprintf((char*)GlobalInfo.current_usr_card_id, "%02x%02x%02x%02x%02x",
 							block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
                     	CL_LOG("block_data[4] = %02x ,block_data[5] = %02x ,block_data[6] = %02x ,block_data[7] = %02x ,block_data[8] = %02x .\n",
                         	block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
 					}
+                    else
+                    {
+                        sprintf((char*)GlobalInfo.current_usr_card_id, "%01x%02x%02x%02x%02x",
+							block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
+                    	CL_LOG("block_data[4] = %02x ,block_data[5] = %02x ,block_data[6] = %02x ,block_data[7] = %02x ,block_data[8] = %02x .\n",
+                        	block_data[4],block_data[5],block_data[6],block_data[7],block_data[8]);
+                    }
+//                    CL_LOG("[aaaaa: %02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x,%02x]\n", GlobalInfo.current_usr_card_id[0], GlobalInfo.current_usr_card_id[1], 
+//                    GlobalInfo.current_usr_card_id[2], GlobalInfo.current_usr_card_id[3], GlobalInfo.current_usr_card_id[4],
+//                    GlobalInfo.current_usr_card_id[5], GlobalInfo.current_usr_card_id[6], GlobalInfo.current_usr_card_id[7],
+//                    GlobalInfo.current_usr_card_id[8], GlobalInfo.current_usr_card_id[9], GlobalInfo.current_usr_card_id[10]);
+                    
+                    
                     StringToBCD(pCardId, (const char *)&GlobalInfo.current_usr_card_id[0]);
 				    //PrintfData("¿¨ºÅ", &pCardId[0], 5);
                     if(0 == (pCardId[4] & 0x0f))

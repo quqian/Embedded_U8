@@ -46,13 +46,12 @@ void BspInit(void)
     FeedWatchDog();
 	SystickInit();
 	SimUartInit();
-	RtcInit();
     DelayMsWithNoneOs(2000);
 	UsartInit();                //串口初始化
 #if USE_TIMER1
     TimerConfig(1, 1000);
 #endif
-
+	RtcInit();
 	LoadSystemInfo();
     SystemResetRecord();
     printf("UsartInit OK!\r\n");
@@ -71,21 +70,20 @@ void BspInit(void)
 
 int main(void)
 {
-//	time_t t;
 	uint32_t NFCardTicks = GetTimeTicks();
 	uint32_t HeartBeatTicks = NFCardTicks;
 	uint32_t ShakeHandTicks = NFCardTicks;
     uint32_t RedLedTicks = NFCardTicks;
 	uint32_t GreenLedTicks = NFCardTicks;
 	uint32_t TimeFlagTicks = GetTimeTicks();
-	
-
+//	struct tm TimeTickss;
+//    uint32_t timeaaa;
+    
 	nvic_vector_table_set(FLASH_BASE, BOOT_SIZE);        	//设置Flash地址偏移
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);		//设置系统中断优先级分组4	
 	
     BspInit();
 	
-	SetRtcCount(1543547571);	
 	while(1)
     {
         FeedWatchDog();
@@ -105,6 +103,19 @@ int main(void)
                 GreenLedTicks = GetTimeTicks();
                 GreenLed();
 			//	CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
+//			#if 0
+//				rtc_current_time_get(&GlobalInfo.RtcData);
+//				memset(&TimeTickss,0,sizeof(struct tm));
+//				TimeTickss.tm_year = GlobalInfo.RtcData.rtc_year + 1992;
+//				TimeTickss.tm_mon = GlobalInfo.RtcData.rtc_month + 9;
+//				TimeTickss.tm_mday = GlobalInfo.RtcData.rtc_date ;
+//				TimeTickss.tm_wday = GlobalInfo.RtcData.rtc_day_of_week;
+//				TimeTickss.tm_hour = GlobalInfo.RtcData.rtc_hour;
+//				TimeTickss.tm_min = GlobalInfo.RtcData.rtc_minute;
+//				TimeTickss.tm_sec = GlobalInfo.RtcData.rtc_second;
+//                timeaaa = mktime(&TimeTickss);
+//			#endif
+//                CL_LOG("时间戳[%d]\n", timeaaa);
             }
 	
             

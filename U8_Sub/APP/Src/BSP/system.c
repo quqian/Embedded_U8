@@ -68,6 +68,8 @@ void LoadSystemInfo(void)
     {
         printf("\n\n\n***********************************************************\n");
         CL_LOG("\rU8Sub³õ´ÎÆô¶¯App\n");
+		SetRtcCount(1545300195);	
+//	time_t mktime(strcut tm * timeptr);
         memset((void*)&SystemInfo, 0, sizeof(SystemInfo));
         SystemInfo.magic_number = MAGIC_NUM_BASE;
 //        memcpy(SystemInfo.stationId, station_id,sizeof(station_id));

@@ -79,7 +79,7 @@ void BspInit(void)
 //    DelayMsWithNoneOs(900);
     printf("\n\n\n===========================================================\n");
     CL_LOG(" U8Sub启动bootLoad\n");
-    printf("fw_version = %d, subVersion1 = %d, subVersion2 = %d.\n", (uint8_t)FW_VERSION, (uint8_t)FW_VERSION_SUB1, (uint8_t)FW_VERSION_SUB2);
+    printf("fw_version: %d.%d.%d.\n", (uint8_t)FW_VERSION, (uint8_t)FW_VERSION_SUB1, (uint8_t)FW_VERSION_SUB2);
     printf("\n U8Sub bootload编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
     printf("\n===========================================================\n");
 }

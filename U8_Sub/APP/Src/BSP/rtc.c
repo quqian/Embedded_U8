@@ -44,7 +44,7 @@ void rtc_pre_config(void)
 	rcu_osci_on(RCU_LXTAL);
 	rcu_osci_stab_wait(RCU_LXTAL);
 	/* select the RTC clock source */
-	rcu_rtc_clock_config(RCU_LXTAL);
+	rcu_rtc_clock_config(RCU_RTCSRC_LXTAL);
 
 	prescaler_s = 0xFF;
 	prescaler_a = 0x7F;
@@ -56,6 +56,7 @@ void rtc_pre_config(void)
     rtc_register_sync_wait();
 }
 
+#if 0
 /*!
     \brief      use hyperterminal to setup RTC time and alarm
     \param[in]  none
@@ -96,18 +97,22 @@ void rtc_setup(void)
     rtc_alarm_enable();    
 #endif
 }
+#endif
 
 void RtcInit(void)
 {
     rtc_pre_config();
+	CL_LOG("初始化 RTC\n");
 #if 0
 	if (BKP_VALUE != RTC_BKP0)
 	{
         rtc_setup(); 
+	//	SetRtcCount(1543629490);
     }
 	else
 	{
 		rtc_show_time();
+		CL_LOG("显示RTC时间\n");
 	#if RTC_USE_ALARM
         rtc_flag_clear(RTC_STAT_ALRM0F);
 //        exti_flag_clear(EXTI_17);
@@ -141,7 +146,8 @@ int LinuxTickToDay(time_t timestamp, uint8_t *pDay)
     pDay[5] = time_now->tm_min;
     pDay[6] = time_now->tm_sec;
 //	strftime(gStrfTime, sizeof(gStrfTime), "%D%T", time_now);
-	
+//	CL_LOG("pDay[0][%d], pDay[1][%d], pDay[2][%d], pDay[3][%d], pDay[4][%d], pDay[5][%d], pDay[6][%d], \n", pDay[0], pDay[1], pDay[2], pDay[3], pDay[4], pDay[5], pDay[6]);
+
     return CL_OK;
 }
 
@@ -229,6 +235,7 @@ void SetRtcCount(time_t timestamp)
 	GlobalInfo.RtcData.rtc_display_format = RTC_24HOUR;
 
 	SetRtcTime(&GlobalInfo.RtcData);
+//	RTC_BKP0 = BKP_VALUE;
 }
 
 
