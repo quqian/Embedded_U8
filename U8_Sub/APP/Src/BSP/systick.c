@@ -104,6 +104,13 @@ void DelayUs(uint32_t us)
 	}									    
 }  
 
+void Delay100Us(void)
+{
+	DelayUs(100);
+
+	return;
+}
+
 void DelayMsWithNoneOs(uint32_t nms)
 {
 	uint32_t i;

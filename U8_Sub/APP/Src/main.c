@@ -44,13 +44,14 @@ void BspInit(void)
     LedInit();
     WatchDogInit();             //看门狗初始化
     FeedWatchDog();
+#if USE_TIMER1
+    TimerConfig(1, 1000, 1);
+#endif
 	SystickInit();
 	SimUartInit();
     DelayMsWithNoneOs(2000);
 	UsartInit();                //串口初始化
-#if USE_TIMER1
-    TimerConfig(1, 1000);
-#endif
+
 	RtcInit();
 	LoadSystemInfo();
     SystemResetRecord();
@@ -65,6 +66,7 @@ void BspInit(void)
 //    DelayMsWithNoneOs(900);
     printf("\r\n BspInit ok\n");
     printf("\n===========================================================\n\n\n");
+    RedLed();
 }
 
 
@@ -90,7 +92,7 @@ int main(void)
 		TimeFlagTicks = GetTimeTicks();
         {
         #if 1
-            if(((RedLedTicks + 5000) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
+            if(((RedLedTicks + 10000) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
             {
                 CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
                 RedLedTicks = TimeFlagTicks;

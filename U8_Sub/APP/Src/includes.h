@@ -23,7 +23,7 @@
 
 
 
-#define FW_VERSION                      1
+#define FW_VERSION                      2           //正式版本时只改主版本
 #define FW_VERSION_SUB1                 4
 #define FW_VERSION_SUB2                 0
 

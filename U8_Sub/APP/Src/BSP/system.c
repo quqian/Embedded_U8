@@ -60,6 +60,7 @@ void LoadSystemInfo(void)
 	memset((void*)&GlobalInfo, 0, sizeof(GlobalInfo));
 	
     if ((MAGIC_NUM_BASE) == SystemInfo.magic_number) 
+   // if(0)
     {
         printf("\n\n\n===========================================================\n");
         CL_LOG("\rU8Sub∆Ù∂ØApp\n");
@@ -68,7 +69,7 @@ void LoadSystemInfo(void)
     {
         printf("\n\n\n***********************************************************\n");
         CL_LOG("\rU8Sub≥ı¥Œ∆Ù∂ØApp\n");
-		SetRtcCount(1545300195);	
+		SetRtcCount(1545649294);
 //	time_t mktime(strcut tm * timeptr);
         memset((void*)&SystemInfo, 0, sizeof(SystemInfo));
         SystemInfo.magic_number = MAGIC_NUM_BASE;
@@ -207,7 +208,7 @@ uint8_t TIMERX_IRQ[TIMER_MAX] = 		{TIMER0_BRK_UP_TRG_COM_IRQn, TIMER1_IRQn};
 ** Returned value:	    None
 ** Author:              quqian
 *****************************************************************************/
-void TimerConfig(uint8_t Index, uint32_t Period)
+void TimerConfig(uint8_t Index, uint32_t Period, uint8_t UserIrq)
 {
     timer_parameter_struct timer_initpara;
 
@@ -223,9 +224,12 @@ void TimerConfig(uint8_t Index, uint32_t Period)
     timer_initpara.repetitioncounter = 0;
     timer_init(TIMERX[Index], &timer_initpara);
 
-	timer_interrupt_enable(TIMERX[Index], TIMER_INT_UP | TIMER_FLAG_UP);
-	timer_flag_clear(TIMERX[Index], TIMER_FLAG_UP);
-	nvic_irq_enable(TIMERX_IRQ[Index], 1, 1);
+	if(1 == UserIrq)
+	{
+		timer_interrupt_enable(TIMERX[Index], TIMER_INT_UP | TIMER_FLAG_UP);
+		timer_flag_clear(TIMERX[Index], TIMER_FLAG_UP);
+		nvic_irq_enable(TIMERX_IRQ[Index], 1, 1);
+	}
 	
     /* auto-reload preload enable */
     timer_auto_reload_shadow_enable(TIMERX[Index]);

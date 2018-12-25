@@ -87,7 +87,7 @@ void SimUartInit(void)
     gSimUartCtrl[0].timerIndex = 1;
     gSimUartCtrl[0].baudRate = 52; //²¨ÌØÂÊ 19200
 	SimUartGPIOInit();
-	TimerConfig(0, 52);
+	TimerConfig(0, 52, 1);
 }
 
 

@@ -3,6 +3,7 @@
 
 #include "includes.h"
 #include "gd32f3x0_rtc.h"
+#include "gd32f3x0_timer.h"
 
 
 #define USE_TIMER1		1
@@ -52,7 +53,7 @@ extern uint8_t Asc2Int(char ch);
 extern int StringToBCD(unsigned char *BCD, const char *str);
 extern char *BCDToString(char *dest, unsigned char *BCD, int bytes);
 extern int GetPktSum(uint8_t *pData, uint16_t len);
-extern void TimerConfig(uint8_t Index, uint32_t Period);
+extern void TimerConfig(uint8_t Index, uint32_t Period, uint8_t UserIrq);
 extern uint32_t GetTimeTicks(void);
 
 

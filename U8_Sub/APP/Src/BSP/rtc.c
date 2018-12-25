@@ -204,7 +204,7 @@ char* GetCurrentTime(void)
 	return gTimeStr;
 }
 
-uint8_t HEX2BCD(uint8_t bcd_data)    //BCD转为HEX子程序    
+uint8_t HEX2BCD(uint8_t bcd_data)  
 {   
     uint8_t temp; 
 
@@ -213,7 +213,7 @@ uint8_t HEX2BCD(uint8_t bcd_data)    //BCD转为HEX子程序
 	return temp;   
 }   
 
-uint8_t BCD2HEX(uint8_t hex_data)    //HEX转为BCD子程序     
+uint8_t BCD2HEX(uint8_t hex_data)  
 {   
     uint8_t temp;   
 	
