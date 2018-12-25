@@ -40,8 +40,8 @@
 //#endif
 
 #define FW_VERSION                      0
-#define FW_VERSION_SUB1                 1
-#define FW_VERSION_SUB2                 1
+#define FW_VERSION_SUB1                 2
+#define FW_VERSION_SUB2                 0
 
 
 #define FLASH_SIZE                      128     //设备flash大小128K

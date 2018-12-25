@@ -76,8 +76,7 @@ int main(void)
     uint32_t RedLedTicks = NFCardTicks;
 	uint32_t GreenLedTicks = NFCardTicks;
 	uint32_t TimeFlagTicks = GetTimeTicks();
-//	struct tm TimeTickss;
-//    uint32_t timeaaa;
+    int64_t timeaaa;
     
 	nvic_vector_table_set(FLASH_BASE, BOOT_SIZE);        	//设置Flash地址偏移
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);		//设置系统中断优先级分组4	
@@ -96,28 +95,19 @@ int main(void)
                 CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
                 RedLedTicks = TimeFlagTicks;
                 RedLed();
+                
+                #if 1
+                timeaaa = GetRtcTimeStamp();
+                timeaaa = ((long long)(RTC_TIMER_STAMEP) + timeaaa);
+                #endif
+                CL_LOG("时间戳[%d]\n", (uint32_t)timeaaa);
             }
 			
 			if(((GreenLedTicks + 500) <= GetTimeTicks()) || (GreenLedTicks > GetTimeTicks()))
             {
                 GreenLedTicks = GetTimeTicks();
                 GreenLed();
-			//	CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
-//			#if 0
-//				rtc_current_time_get(&GlobalInfo.RtcData);
-//				memset(&TimeTickss,0,sizeof(struct tm));
-//				TimeTickss.tm_year = GlobalInfo.RtcData.rtc_year + 1992;
-//				TimeTickss.tm_mon = GlobalInfo.RtcData.rtc_month + 9;
-//				TimeTickss.tm_mday = GlobalInfo.RtcData.rtc_date ;
-//				TimeTickss.tm_wday = GlobalInfo.RtcData.rtc_day_of_week;
-//				TimeTickss.tm_hour = GlobalInfo.RtcData.rtc_hour;
-//				TimeTickss.tm_min = GlobalInfo.RtcData.rtc_minute;
-//				TimeTickss.tm_sec = GlobalInfo.RtcData.rtc_second;
-//                timeaaa = mktime(&TimeTickss);
-//			#endif
-//                CL_LOG("时间戳[%d]\n", timeaaa);
             }
-	
             
 			if(((NFCardTicks + 500) <= TimeFlagTicks) || (NFCardTicks > TimeFlagTicks))
             {

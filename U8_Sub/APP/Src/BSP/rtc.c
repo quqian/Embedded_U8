@@ -1,4 +1,5 @@
 #include <stdio.h>
+#include <stdint.h>
 #include <time.h>
 #include "rtc.h"
 #include "includes.h"
@@ -142,9 +143,24 @@ int LinuxTickToDay(time_t timestamp, uint8_t *pDay)
     pDay[1] = time_now->tm_year-100;
     pDay[2] = time_now->tm_mon+1;
     pDay[3] = time_now->tm_mday;
-    pDay[4] = time_now->tm_hour+8;
+    pDay[4] = time_now->tm_hour + 8;
     pDay[5] = time_now->tm_min;
     pDay[6] = time_now->tm_sec;
+    if(24 < pDay[4])
+    {
+        pDay[4] = pDay[4] - 24;
+        pDay[3] = pDay[3] + 1;
+    }
+    if(60 < pDay[5])
+    {
+        pDay[5] = pDay[5] - 60;
+        pDay[4] = pDay[4] + 1;
+    }
+    if(60 < pDay[6])
+    {
+        pDay[6] = pDay[6] - 60;
+        pDay[5] = pDay[5] + 1;
+    }
 //	strftime(gStrfTime, sizeof(gStrfTime), "%D%T", time_now);
 //	CL_LOG("pDay[0][%d], pDay[1][%d], pDay[2][%d], pDay[3][%d], pDay[4][%d], pDay[5][%d], pDay[6][%d], \n", pDay[0], pDay[1], pDay[2], pDay[3], pDay[4], pDay[5], pDay[6]);
 
@@ -238,6 +254,26 @@ void SetRtcCount(time_t timestamp)
 //	RTC_BKP0 = BKP_VALUE;
 }
 
+int64_t GetRtcTimeStamp(void)
+{
+    struct tm TimeTickss;
+    rtc_parameter_struct RtcData = {0,};
+    
+	rtc_current_time_get(&RtcData);
+    memset(&TimeTickss,0,sizeof(struct tm));
+    TimeTickss.tm_year =  BCD2HEX(RtcData.rtc_year);
+    TimeTickss.tm_mon = BCD2HEX(RtcData.rtc_month);
+    TimeTickss.tm_mday = BCD2HEX(RtcData.rtc_date);
+    TimeTickss.tm_wday = BCD2HEX(RtcData.rtc_day_of_week);
+    TimeTickss.tm_hour = BCD2HEX(RtcData.rtc_hour);
+    TimeTickss.tm_min = BCD2HEX(RtcData.rtc_minute);
+    TimeTickss.tm_sec = BCD2HEX(RtcData.rtc_second);
+    
+//    printf("\naaaaa[%d,%d,%d,%d,%d,%d] \n", TimeTickss.tm_year, TimeTickss.tm_mon, 
+ //   TimeTickss.tm_mday, TimeTickss.tm_hour, TimeTickss.tm_min, TimeTickss.tm_sec);
+    
+    return mktime(&TimeTickss);
+}
 
 
 

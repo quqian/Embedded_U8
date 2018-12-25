@@ -81,6 +81,9 @@ typedef struct {
     uint8_t  data[128];
 }OUT_PKT_STR;
 
+typedef struct {
+    uint32_t  SetRTC;
+}SET_RTC_STR;
 
 #pragma pack()
 

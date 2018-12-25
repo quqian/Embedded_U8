@@ -1,3 +1,4 @@
+#include <stdint.h>
 #include "ProtoWithMainBoard.h"
 #include "system.h"
 #include "usart.h"
@@ -188,7 +189,11 @@ int BasicInfoShakeHand(void)
 	{
 		ShakeHand->cardState = 0;
 	}
-	ShakeHand->TimeStamp = 0;
+    ShakeHand->TimeStamp = 0;
+#if 1
+    ShakeHand->TimeStamp = GetRtcTimeStamp();
+    ShakeHand->TimeStamp = (uint32_t)((RTC_TIMER_STAMEP) + ShakeHand->TimeStamp);
+#endif
 	
 	App_CB_SendData(pBuff, sizeof(SHAKE_HAND_STR), ENUM_MODUL_BASE, ENUM_SHAKE_HAND);
 	PrintfData("BasicInfoShakeHand", (uint8_t*)pBuff, sizeof(SHAKE_HAND_STR) + sizeof(CB_HEAD_STR) + 2);
@@ -228,6 +233,10 @@ int BasicInfoHeartBeat(void)
 		HeartBeat->cardState = 0;
 	}
 	HeartBeat->TimerStamp = 0;
+#if 1
+    HeartBeat->TimerStamp = GetRtcTimeStamp();
+    HeartBeat->TimerStamp = (uint32_t)((RTC_TIMER_STAMEP) + HeartBeat->TimerStamp);
+#endif
 
 	App_CB_SendData(pBuff, sizeof(HEARTBAT_STR), ENUM_MODUL_BASE, ENUM_HEART_BEAT);
 	
@@ -241,7 +250,11 @@ int BasicInfoHeartBeatAck(CB_STR_t *pBuff, uint16_t len)
 	if(0 == HeartBeatAck->result)
 	{
 		printf("收到主板心跳应答!\r\n");
-	//	HeartBeatAck->TimerStamp;
+        
+        if(0 != HeartBeatAck->TimerStamp)
+        {
+            SetRtcCount(HeartBeatAck->TimerStamp);
+        }
 	}
 	else
 	{

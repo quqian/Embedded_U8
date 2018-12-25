@@ -33,7 +33,10 @@ void SendTestPktAck(uint8_t cmd, uint8_t *pkt, uint8_t len)
 void DebugPktProc(OUT_PKT_STR *pBuff, uint16_t len)
 {
 	uint16_t dataLen = 1;
-
+    SET_RTC_STR Rtc = {0};
+    int64_t timeStamp;
+    rtc_parameter_struct RtcData;
+    
 	CL_LOG("comcom cmd = [%#x], [%d], [%d]\n", pBuff->head.cmd, pBuff->data[0], pBuff->data[1]);
 	PrintfData("Debug接收数据", (uint8_t*)pBuff, len + 1);
 	
@@ -63,7 +66,40 @@ void DebugPktProc(OUT_PKT_STR *pBuff, uint16_t len)
 			pBuff->data[0] = 0;
 			dataLen = 1;
 		break;
-
+        case DEBUG_CMD_SET_RTC:
+            CL_LOG("DEBUG_CMD_SET_RTC \n");
+            Rtc.SetRTC = 0;
+            Rtc.SetRTC = (pBuff->data[0] << 24) + (pBuff->data[1] << 16) + (pBuff->data[2] << 8) + (pBuff->data[3]);
+            SetRtcCount(Rtc.SetRTC);
+          //  CL_LOG("hhhhhhhhhhhhhhhhhhhhhhhSetRtc = %d, %x", Rtc.SetRTC, Rtc.SetRTC);
+          //  CL_LOG("[%X, %X, %X %X]", pBuff->data[0], pBuff->data[1], pBuff->data[2], pBuff->data[3]);
+			pBuff->data[0] = 0;
+			dataLen = 1;
+		break;
+        
+        case DEBUG_CMD_RED_RTC:
+            CL_LOG("DEBUG_CMD_RED_RTC \n");
+            
+            timeStamp = GetRtcTimeStamp();
+            timeStamp = ((long long)(RTC_TIMER_STAMEP) + timeStamp);
+            CL_LOG("GET RTC时间戳[%d]\n", (uint32_t)timeStamp);
+			pBuff->data[0] = (timeStamp>> 24) & 0xff;
+            pBuff->data[1] = (timeStamp>> 16) & 0xff;
+            pBuff->data[2] = (timeStamp>> 8) & 0xff;
+            pBuff->data[3] = (timeStamp) & 0xff;
+      //      CL_LOG("qqqqqqqqqq[%x,%x,%x,%x] \n", pBuff->data[0], pBuff->data[1], pBuff->data[2], pBuff->data[3]);
+            rtc_current_time_get(&RtcData);
+      //      printf("%2x%02x%02x %02x:%02x:%02x", RtcData.rtc_year, RtcData.rtc_month, 
+      //      RtcData.rtc_date, RtcData.rtc_hour, RtcData.rtc_minute, RtcData.rtc_second);
+            pBuff->data[4] = BCD2HEX(RtcData.rtc_year);
+            pBuff->data[5] = BCD2HEX(RtcData.rtc_month);
+            pBuff->data[6] = BCD2HEX(RtcData.rtc_date);
+            pBuff->data[7] = BCD2HEX(RtcData.rtc_hour);
+            pBuff->data[8] = BCD2HEX(RtcData.rtc_minute);
+            pBuff->data[9] = BCD2HEX(RtcData.rtc_second);
+			dataLen = 10;
+		break;
+        
 		case GET_CMD_U8_CARD:
 			GlobalInfo.TestCardFlag = 0xa5;
 		return;
