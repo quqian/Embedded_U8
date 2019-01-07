@@ -192,7 +192,6 @@ int BasicInfoShakeHand(void)
     ShakeHand->TimeStamp = 0;
 #if 1
     ShakeHand->TimeStamp = GetRtcTimeStamp();
-    ShakeHand->TimeStamp = (uint32_t)((RTC_TIMER_STAMEP) + ShakeHand->TimeStamp);
 #endif
 	
 	App_CB_SendData(pBuff, sizeof(SHAKE_HAND_STR), ENUM_MODUL_BASE, ENUM_SHAKE_HAND);
@@ -235,7 +234,6 @@ int BasicInfoHeartBeat(void)
 	HeartBeat->TimerStamp = 0;
 #if 1
     HeartBeat->TimerStamp = GetRtcTimeStamp();
-    HeartBeat->TimerStamp = (uint32_t)((RTC_TIMER_STAMEP) + HeartBeat->TimerStamp);
 #endif
 
 	App_CB_SendData(pBuff, sizeof(HEARTBAT_STR), ENUM_MODUL_BASE, ENUM_HEART_BEAT);

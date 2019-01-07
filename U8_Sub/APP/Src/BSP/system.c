@@ -58,9 +58,8 @@ void LoadSystemInfo(void)
 //    const uint8_t station_id[8] = {0x00,0x00,0x00,0x66,0x77,0x88,0x99,0x00};
     FlashReadSysInfo(&SystemInfo, sizeof(SystemInfo));
 	memset((void*)&GlobalInfo, 0, sizeof(GlobalInfo));
-	
+    
     if ((MAGIC_NUM_BASE) == SystemInfo.magic_number) 
-   // if(0)
     {
         printf("\n\n\n===========================================================\n");
         CL_LOG("\rU8Sub启动App\n");
@@ -76,7 +75,7 @@ void LoadSystemInfo(void)
 //        memcpy(SystemInfo.stationId, station_id,sizeof(station_id));
         FlashWriteSysInfo(&SystemInfo, sizeof(SystemInfo));
     }
-    CL_LOG("\r设备版本号: fw_version = %d, subVersion1 = %d, subVersion2 = %d. \n", FW_VERSION, FW_VERSION_SUB1, FW_VERSION_SUB2);
+    CL_LOG("\r设备版本号: fw_version = %d, subVersion1 = %d. \n", FW_VERSION, FW_VERSION_SUB1);
     CL_LOG("\n\r文件编译时间, 月日年 %s 时分秒%s \n", __DATE__, __TIME__);
 }
 

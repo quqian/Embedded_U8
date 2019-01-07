@@ -81,7 +81,6 @@ void DebugPktProc(OUT_PKT_STR *pBuff, uint16_t len)
             CL_LOG("DEBUG_CMD_RED_RTC \n");
             
             timeStamp = GetRtcTimeStamp();
-            timeStamp = ((long long)(RTC_TIMER_STAMEP) + timeStamp);
             CL_LOG("GET RTCÊ±¼ä´Á[%d]\n", (uint32_t)timeStamp);
 			pBuff->data[0] = (timeStamp>> 24) & 0xff;
             pBuff->data[1] = (timeStamp>> 16) & 0xff;
@@ -114,12 +113,11 @@ void DebugPktProc(OUT_PKT_STR *pBuff, uint16_t len)
 			{
 				pBuff->data[1] = (uint8_t)FW_VERSION;
 				pBuff->data[2] = (uint8_t)FW_VERSION_SUB1;
-				pBuff->data[3] = (uint8_t)FW_VERSION_SUB2;
                 
 				CL_LOG("°æ±¾ºÅ[%d.%d,%d]\n", pBuff->data[1], pBuff->data[2], pBuff->data[3]);
 			}
 			
-			dataLen = 4;
+			dataLen = 3;
 		break;
         case DEBUG_CMD_REBOOT:
 			pBuff->data[0] = 0;

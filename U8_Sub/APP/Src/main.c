@@ -78,7 +78,7 @@ int main(void)
     uint32_t RedLedTicks = NFCardTicks;
 	uint32_t GreenLedTicks = NFCardTicks;
 	uint32_t TimeFlagTicks = GetTimeTicks();
-    int64_t timeaaa;
+ //   int64_t timeaaa;
     
 	nvic_vector_table_set(FLASH_BASE, BOOT_SIZE);        	//设置Flash地址偏移
     nvic_priority_group_set(NVIC_PRIGROUP_PRE4_SUB0);		//设置系统中断优先级分组4	
@@ -94,15 +94,14 @@ int main(void)
         #if 1
             if(((RedLedTicks + 10000) <= TimeFlagTicks) || (RedLedTicks > TimeFlagTicks))
             {
-                CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
+             //   CL_LOG("SystemCoreClock[%d]\n", SystemCoreClock);
                 RedLedTicks = TimeFlagTicks;
                 RedLed();
                 
-                #if 1
+                #if 0
                 timeaaa = GetRtcTimeStamp();
-                timeaaa = ((long long)(RTC_TIMER_STAMEP) + timeaaa);
-                #endif
                 CL_LOG("时间戳[%d]\n", (uint32_t)timeaaa);
+                #endif
             }
 			
 			if(((GreenLedTicks + 500) <= GetTimeTicks()) || (GreenLedTicks > GetTimeTicks()))
